@@ -222,7 +222,7 @@
                 <form id="timeForm">
                     <div class="form-group">
                         <label for="date">Date *</label>
-                        <input type="date" id="date" required>
+                        <input type="date" id="date" required style="max-width: 300px;" onchange="loadDateData()">
                     </div>
 
                     <div class="time-inputs">
@@ -236,18 +236,8 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="lunchHours">Temps de dîner</label>
-                        <select id="lunchHours">
-                            <option value="0">Aucun</option>
-                            <option value="0.25">15 minutes</option>
-                            <option value="0.5">30 minutes</option>
-                            <option value="0.75">45 minutes</option>
-                            <option value="1" selected>1 heure</option>
-                            <option value="1.25">1h15</option>
-                            <option value="1.5">1h30</option>
-                            <option value="2">2 heures</option>
-                        </select>
+                    <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 0.9rem; color: #1565c0;">
+                        ℹ️ <strong>Pause dîner :</strong> 12h00 - 13h00 (automatique)
                     </div>
 
                     <div style="background: linear-gradient(135deg, var(--secondary) 0%, #4a8f64 100%); color: white; padding: 15px; border-radius: 8px; text-align: center; margin-top: 15px;" id="totalDisplay">
@@ -261,9 +251,14 @@
                     </div>
 
                     <div class="form-group">
-                        <button type="button" onclick="showCopyDialog()" style="background: var(--accent); margin-top: 10px;">
-                            📋 Copier la journée d'un collègue
-                        </button>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button type="button" onclick="showCopyDialog()" style="background: var(--accent);">
+                                📋 Copier la journée d'un collègue
+                            </button>
+                            <button type="button" onclick="showCommentDialog()" style="background: var(--primary);">
+                                💬 Commentaire
+                            </button>
+                        </div>
                     </div>
 
                     <div id="taskAllocation" style="margin-top: 25px; display: none;">
@@ -350,6 +345,21 @@
         </div>
     </div>
 
+    <!-- MODALE COMMENTAIRE -->
+    <div id="commentModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; padding: 20px;">
+        <div class="card" style="max-width: 500px; margin: 50px auto;">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">💬 Commentaire de la journée</h2>
+            <div class="form-group">
+                <label>Commentaire (optionnel)</label>
+                <textarea id="commentText" rows="5" style="width: 100%; padding: 12px; border: 2px solid #e0e4e8; border-radius: 8px; font-family: 'Archivo', sans-serif; resize: vertical;" placeholder="Notes, observations, remarques..."></textarea>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="saveComment()" style="flex: 1; background: var(--secondary);">✓ Enregistrer</button>
+                <button onclick="closeCommentModal()" style="flex: 1; background: #999;">Annuler</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODALE ÉDITER -->
     <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; padding: 20px;">
         <div class="card" style="max-width: 500px; margin: 50px auto;">
@@ -378,6 +388,7 @@
         const COLORS = ['#1a5f7a', '#57a773', '#f39c12', '#e74c3c', '#9b59b6', '#3498db', '#1abc9c'];
         
         let sb, currentUser, allTasks = [], selectedTasks = [], taskHours = {}, totalHours = 0;
+        let currentComment = ''; // Commentaire de la journée
         let isDragging = false, dragHandleIndex = -1;
         
         // ============== INIT ==============
@@ -528,15 +539,26 @@
         function calculateTotalHours() {
             const start = document.getElementById('startTime').value.split(':');
             const end = document.getElementById('endTime').value.split(':');
-            const lunch = parseFloat(document.getElementById('lunchHours').value) || 0;
             
-            let h = parseInt(end[0]) - parseInt(start[0]);
-            let m = parseInt(end[1]) - parseInt(start[1]);
+            let startMinutes = parseInt(start[0]) * 60 + parseInt(start[1]);
+            let endMinutes = parseInt(end[0]) * 60 + parseInt(end[1]);
             
-            if (m < 0) { h--; m += 60; }
-            if (h < 0) h += 24;
+            if (endMinutes < startMinutes) endMinutes += 24 * 60;
             
-            totalHours = Math.max(0, h + m/60 - lunch);
+            // Pause dîner fixe : 12h00 - 13h00 (720 - 780 minutes)
+            const lunchStart = 12 * 60; // 720 minutes (12h00)
+            const lunchEnd = 13 * 60;   // 780 minutes (13h00)
+            
+            let workMinutes = endMinutes - startMinutes;
+            
+            // Soustraire la pause dîner si elle est dans la plage de travail
+            if (startMinutes < lunchEnd && endMinutes > lunchStart) {
+                const overlapStart = Math.max(startMinutes, lunchStart);
+                const overlapEnd = Math.min(endMinutes, lunchEnd);
+                workMinutes -= (overlapEnd - overlapStart);
+            }
+            
+            totalHours = Math.max(0, workMinutes / 60);
             
             const hh = Math.floor(totalHours);
             const mm = Math.round((totalHours - hh) * 60);
@@ -594,20 +616,27 @@
                 section.className = 'task-section';
                 section.style.width = pct + '%';
                 section.style.backgroundColor = COLORS[idx % COLORS.length];
+                section.style.cursor = idx < selectedTasks.length - 1 ? 'ew-resize' : 'default';
                 
                 section.innerHTML = `
                     <div class="task-name">${task}</div>
                     <div class="task-hours">${startTime} - ${endTime}</div>
                 `;
                 
+                // Rendre toute la section draggable (sauf la dernière)
                 if (idx < selectedTasks.length - 1) {
+                    section.dataset.index = idx;
+                    section.style.position = 'relative';
+                    
+                    // Support souris
+                    section.addEventListener('mousedown', startDrag);
+                    // Support tactile
+                    section.addEventListener('touchstart', startDrag, { passive: false });
+                    
+                    // Ajouter une petite poignée visuelle (optionnel)
                     const handle = document.createElement('div');
                     handle.className = 'resize-handle';
-                    handle.dataset.index = idx;
-                    // Support souris
-                    handle.addEventListener('mousedown', startDrag);
-                    // Support tactile avec options pour permettre preventDefault
-                    handle.addEventListener('touchstart', startDrag, { passive: false });
+                    handle.style.pointerEvents = 'none'; // La poignée est juste visuelle
                     section.appendChild(handle);
                 }
                 
@@ -625,6 +654,7 @@
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 10px; background: #f9f9f9; border-radius: 6px; border-left: 4px solid ${COLORS[idx % COLORS.length]};">
                         <label style="margin: 0; font-weight: 600;">${task}</label>
                         <input type="text" value="${timeValue}" placeholder="0:00"
+                               onblur="formatTimeInput(this)"
                                onchange="updateTaskHoursFromTime('${task}', this.value)"
                                style="width: 100px; padding: 8px; border: 2px solid #e0e4e8; border-radius: 6px; font-family: 'Space Mono', monospace; font-weight: 600; text-align: center;">
                     </div>
@@ -767,6 +797,13 @@
             const start = document.getElementById('startTime').value;
             const end = document.getElementById('endTime').value;
             
+            // Supprimer les anciennes entrées pour cette date (modification)
+            await sb
+                .from('time_entries')
+                .delete()
+                .eq('employee_id', currentUser.id)
+                .eq('date', date);
+            
             const entries = selectedTasks.map(task => ({
                 employee_id: currentUser.id,
                 employee_name: currentUser.name,
@@ -774,7 +811,8 @@
                 date: date,
                 hours: taskHours[task],
                 start_time: start,
-                end_time: end
+                end_time: end,
+                comment: currentComment || null
             }));
             
             const {error} = await sb.from('time_entries').insert(entries);
@@ -791,11 +829,11 @@
             document.getElementById('date').valueAsDate = new Date();
             document.getElementById('startTime').value = '7:30';
             document.getElementById('endTime').value = '16:30';
-            document.getElementById('lunchHours').value = '1';
             document.getElementById('taskAllocation').style.display = 'none';
             
             selectedTasks = [];
             taskHours = {};
+            currentComment = '';
             
             calculateTotalHours();
             load7Days();
@@ -809,7 +847,11 @@
             for (let i = 0; i < 7; i++) {
                 const date = new Date(today);
                 date.setDate(today.getDate() - i);
-                days.push(date.toISOString().split('T')[0]);
+                // Utiliser la date locale au lieu de UTC
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                days.push(`${year}-${month}-${day}`);
             }
             
             const {data} = await sb
@@ -833,11 +875,12 @@
                 const totalStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
                 const dayId = `day-${date}`;
                 
-                // Afficher "Aujourd'hui" pour le jour courant
-                const todayStr = new Date().toISOString().split('T')[0];
+                // Afficher "Aujourd'hui" pour le jour courant (date locale)
+                const now = new Date();
+                const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                 const displayText = date === todayStr 
                     ? "Aujourd'hui" 
-                    : new Date(date).toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'});
+                    : new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'});
                 
                 return `
                     <div style="background: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid var(--primary);">
@@ -1254,6 +1297,84 @@
         function closeEditModal() {
             document.getElementById('editModal').style.display = 'none';
             editingEntry = null;
+        }
+        
+        // ============== COMMENTAIRE ==============
+        function showCommentDialog() {
+            document.getElementById('commentText').value = currentComment;
+            document.getElementById('commentModal').style.display = 'block';
+        }
+        
+        function saveComment() {
+            currentComment = document.getElementById('commentText').value;
+            closeCommentModal();
+        }
+        
+        function closeCommentModal() {
+            document.getElementById('commentModal').style.display = 'none';
+        }
+        
+        // ============== CHARGER DONNÉES PAR DATE ==============
+        async function loadDateData() {
+            const date = document.getElementById('date').value;
+            if (!date || !currentUser) return;
+            
+            const {data, error} = await sb
+                .from('time_entries')
+                .select()
+                .eq('employee_id', currentUser.id)
+                .eq('date', date);
+            
+            if (error || !data || data.length === 0) {
+                // Pas de données pour cette date, réinitialiser
+                currentComment = '';
+                return;
+            }
+            
+            // Pré-remplir les champs
+            document.getElementById('startTime').value = data[0].start_time || '7:30';
+            document.getElementById('endTime').value = data[0].end_time || '16:30';
+            
+            // Charger le commentaire
+            currentComment = data[0].comment || '';
+            
+            // Sélectionner les tâches
+            selectedTasks = data.map(e => e.task);
+            updateTaskListHighlight();
+            
+            // Initialiser les heures
+            taskHours = {};
+            data.forEach(e => {
+                taskHours[e.task] = e.hours;
+            });
+            
+            calculateTotalHours();
+            
+            if (selectedTasks.length > 0) {
+                document.getElementById('taskAllocation').style.display = 'block';
+                renderSlider();
+            }
+        }
+        
+        // ============== FORMAT AUTOMATIQUE HEURES ==============
+        function formatTimeInput(input) {
+            let value = input.value.replace(/[^0-9]/g, ''); // Garder que les chiffres
+            
+            if (value.length === 0) return;
+            
+            // Convertir en format h:mm
+            if (value.length <= 2) {
+                // 1 ou 2 chiffres = heures seulement
+                input.value = value + ':00';
+            } else if (value.length === 3) {
+                // 3 chiffres = h:mm (ex: 415 → 4:15)
+                input.value = value[0] + ':' + value.substr(1);
+            } else {
+                // 4+ chiffres = hh:mm (ex: 0415 → 4:15, 1030 → 10:30)
+                const h = parseInt(value.substr(0, value.length - 2));
+                const m = value.substr(-2);
+                input.value = h + ':' + m;
+            }
         }
     </script>
 </body>
