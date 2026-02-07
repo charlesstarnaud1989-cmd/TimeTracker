@@ -254,9 +254,9 @@
                     </div>
 
                     <div class="form-group" style="margin-top: 20px;">
-                        <label>Tâches effectuées (maintenez Ctrl/Cmd pour sélectionner plusieurs)</label>
-                        <select id="taskSelect" multiple style="height: 150px;" onchange="updateTaskSelection()">
-                        </select>
+                        <label>Tâches effectuées (cliquez pour ajouter/retirer)</label>
+                        <div id="taskSelectList" style="border: 2px solid #e0e4e8; border-radius: 8px; padding: 10px; max-height: 200px; overflow-y: auto;">
+                        </div>
                         <div id="selectedTasksList" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;"></div>
                     </div>
 
@@ -477,15 +477,25 @@
                 return freqB - freqA;
             });
             
-            // Remplir le select
-            document.getElementById('taskSelect').innerHTML = 
-                sortedTasks.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+            // Remplir la liste cliquable
+            document.getElementById('taskSelectList').innerHTML = sortedTasks.map(t => `
+                <div onclick="toggleTask('${t.name}')" style="padding: 10px; cursor: pointer; border-radius: 6px; margin-bottom: 5px; transition: background 0.2s;" 
+                     onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='white'" id="task-item-${t.name.replace(/\s/g, '-')}">
+                    ${t.name}
+                </div>
+            `).join('');
         }
         
-        function updateTaskSelection() {
-            const select = document.getElementById('taskSelect');
-            selectedTasks = Array.from(select.selectedOptions).map(opt => opt.value);
+        function toggleTask(taskName) {
+            if (selectedTasks.includes(taskName)) {
+                selectedTasks = selectedTasks.filter(t => t !== taskName);
+            } else {
+                selectedTasks.push(taskName);
+            }
+            
+            // Mettre à jour l'affichage
             renderSelectedTasks();
+            updateTaskListHighlight();
             
             if (selectedTasks.length > 0 && totalHours > 0) {
                 document.getElementById('taskAllocation').style.display = 'block';
@@ -496,10 +506,28 @@
             }
         }
         
+        function updateTaskListHighlight() {
+            // Réinitialiser tous les items
+            document.querySelectorAll('[id^="task-item-"]').forEach(item => {
+                item.style.background = 'white';
+                item.style.fontWeight = 'normal';
+            });
+            
+            // Highlighter les sélectionnés
+            selectedTasks.forEach(task => {
+                const item = document.getElementById('task-item-' + task.replace(/\s/g, '-'));
+                if (item) {
+                    item.style.background = '#e8f5e9';
+                    item.style.fontWeight = 'bold';
+                }
+            });
+        }
+        
         function renderSelectedTasks() {
             document.getElementById('selectedTasksList').innerHTML = selectedTasks.map((task, idx) => `
                 <span style="background: ${COLORS[idx % COLORS.length]}; color: white; padding: 8px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;">
                     ${task}
+                    <button type="button" onclick="toggleTask('${task}')" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: auto; font-size: 1.2rem; line-height: 1;">×</button>
                 </span>
             `).join('');
         }
@@ -550,29 +578,43 @@
             const sliderBar = document.getElementById('sliderBar');
             sliderBar.innerHTML = '';
             
+            // Calculer les heures de début et fin pour chaque tâche
+            const startParts = document.getElementById('startTime').value.split(':');
+            let currentMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+            
             selectedTasks.forEach((task, idx) => {
                 const hours = taskHours[task];
                 const pct = (hours / totalHours) * 100;
+                
+                // Calculer l'heure de début de cette tâche
+                const startH = Math.floor(currentMinutes / 60);
+                const startM = currentMinutes % 60;
+                const startTime = `${startH}h${startM.toString().padStart(2,'0')}`;
+                
+                // Calculer l'heure de fin
+                currentMinutes += hours * 60;
+                const endH = Math.floor(currentMinutes / 60);
+                const endM = Math.round(currentMinutes % 60);
+                const endTime = `${endH}h${endM.toString().padStart(2,'0')}`;
                 
                 const section = document.createElement('div');
                 section.className = 'task-section';
                 section.style.width = pct + '%';
                 section.style.backgroundColor = COLORS[idx % COLORS.length];
                 
-                const h = Math.floor(hours);
-                const m = Math.round((hours - h) * 60);
-                const timeStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
-                
                 section.innerHTML = `
                     <div class="task-name">${task}</div>
-                    <div class="task-hours">${timeStr}</div>
+                    <div class="task-hours">${startTime} - ${endTime}</div>
                 `;
                 
                 if (idx < selectedTasks.length - 1) {
                     const handle = document.createElement('div');
                     handle.className = 'resize-handle';
                     handle.dataset.index = idx;
+                    // Support souris
                     handle.addEventListener('mousedown', startDrag);
+                    // Support tactile
+                    handle.addEventListener('touchstart', startDrag);
                     section.appendChild(handle);
                 }
                 
@@ -599,15 +641,25 @@
             e.preventDefault();
             isDragging = true;
             dragHandleIndex = parseInt(e.target.dataset.index);
+            
+            // Support souris
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
+            
+            // Support tactile
+            document.addEventListener('touchmove', onDrag);
+            document.addEventListener('touchend', stopDrag);
         }
         
         function onDrag(e) {
             if (!isDragging) return;
+            e.preventDefault();
+            
+            // Obtenir la position X (souris ou tactile)
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             
             const rect = document.getElementById('sliderBar').getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
+            const mouseX = clientX - rect.left;
             const mousePct = (mouseX / rect.width) * 100;
             
             let cumPct = 0;
@@ -638,8 +690,11 @@
         
         function stopDrag() {
             isDragging = false;
+            // Nettoyer tous les listeners
             document.removeEventListener('mousemove', onDrag);
             document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('touchmove', onDrag);
+            document.removeEventListener('touchend', stopDrag);
         }
         
         async function handleTimeSubmit(e) {
