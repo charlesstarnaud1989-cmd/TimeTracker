@@ -124,11 +124,11 @@
 
         .resize-handle {
             position: absolute;
-            right: -8px;
+            right: -12px;
             top: 50%;
             transform: translateY(-50%);
-            width: 16px;
-            height: 40px;
+            width: 24px;
+            height: 60px;
             background: white;
             border-radius: 8px;
             cursor: ew-resize;
@@ -137,7 +137,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 2px solid #ddd;
+            border: 3px solid #999;
+            touch-action: none;
         }
 
         .resize-handle::after { content: '⋮'; color: #666; font-size: 1.2rem; }
@@ -206,7 +207,7 @@
             <header>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h1>⏱️ Suivi du Temps</h1>
+                        <h1>⏱️ Feuille de Temps</h1>
                         <p class="subtitle" id="employeeName"></p>
                     </div>
                     <button onclick="logout()" style="width: auto; padding: 10px 20px; background: rgba(255,255,255,0.2);">
@@ -221,7 +222,7 @@
                 <form id="timeForm">
                     <div class="form-group">
                         <label for="date">Date *</label>
-                        <input type="date" id="date" required>
+                        <input type="date" id="date" required style="padding-left: 40px;">
                     </div>
 
                     <div class="time-inputs">
@@ -257,7 +258,6 @@
                         <label>Tâches effectuées (cliquez pour ajouter/retirer)</label>
                         <div id="taskSelectList" style="border: 2px solid #e0e4e8; border-radius: 8px; padding: 10px; max-height: 200px; overflow-y: auto;">
                         </div>
-                        <div id="selectedTasksList" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;"></div>
                     </div>
 
                     <div class="form-group">
@@ -268,9 +268,12 @@
 
                     <div id="taskAllocation" style="margin-top: 25px; display: none;">
                         <h3 style="color: var(--primary); margin-bottom: 15px;">Répartition du temps</h3>
-                        <p style="color: #666; margin-bottom: 20px;">Glissez les poignées pour ajuster</p>
+                        <p style="color: #666; margin-bottom: 20px;">Glissez les poignées ou entrez les heures manuellement</p>
                         
                         <div class="slider-bar" id="sliderBar"></div>
+                        
+                        <div id="manualInputs" style="display: grid; gap: 10px; margin-bottom: 20px;"></div>
+                        
                         <div id="taskBreakdown"></div>
                     </div>
 
@@ -281,7 +284,7 @@
             </div>
 
             <div class="card">
-                <h2 style="color: var(--primary); margin-bottom: 20px;">📅 Aujourd'hui et les 6 derniers jours</h2>
+                <h2 style="color: var(--primary); margin-bottom: 20px;">📅 Historique</h2>
                 <div id="last7Days"></div>
             </div>
         </div>
@@ -479,8 +482,8 @@
             
             // Remplir la liste cliquable
             document.getElementById('taskSelectList').innerHTML = sortedTasks.map(t => `
-                <div onclick="toggleTask('${t.name}')" style="padding: 10px; cursor: pointer; border-radius: 6px; margin-bottom: 5px; transition: background 0.2s;" 
-                     onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='white'" id="task-item-${t.name.replace(/\s/g, '-')}">
+                <div onclick="toggleTask('${t.name}')" style="padding: 12px; cursor: pointer; border-radius: 6px; margin-bottom: 5px; transition: all 0.2s; border: 2px solid transparent;" 
+                     id="task-item-${t.name.replace(/\s/g, '-')}">
                     ${t.name}
                 </div>
             `).join('');
@@ -494,7 +497,6 @@
             }
             
             // Mettre à jour l'affichage
-            renderSelectedTasks();
             updateTaskListHighlight();
             
             if (selectedTasks.length > 0 && totalHours > 0) {
@@ -511,25 +513,18 @@
             document.querySelectorAll('[id^="task-item-"]').forEach(item => {
                 item.style.background = 'white';
                 item.style.fontWeight = 'normal';
+                item.style.border = '2px solid transparent';
             });
             
-            // Highlighter les sélectionnés
+            // Highlighter les sélectionnés avec une surbrillance forte
             selectedTasks.forEach(task => {
                 const item = document.getElementById('task-item-' + task.replace(/\s/g, '-'));
                 if (item) {
-                    item.style.background = '#e8f5e9';
+                    item.style.background = '#c8e6c9';
                     item.style.fontWeight = 'bold';
+                    item.style.border = '2px solid var(--secondary)';
                 }
             });
-        }
-        
-        function renderSelectedTasks() {
-            document.getElementById('selectedTasksList').innerHTML = selectedTasks.map((task, idx) => `
-                <span style="background: ${COLORS[idx % COLORS.length]}; color: white; padding: 8px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;">
-                    ${task}
-                    <button type="button" onclick="toggleTask('${task}')" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: auto; font-size: 1.2rem; line-height: 1;">×</button>
-                </span>
-            `).join('');
         }
         
         function calculateTotalHours() {
@@ -621,6 +616,19 @@
                 sliderBar.appendChild(section);
             });
             
+            // Ajouter les inputs manuels
+            document.getElementById('manualInputs').innerHTML = selectedTasks.map((task, idx) => {
+                const hours = taskHours[task];
+                return `
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 10px; background: #f9f9f9; border-radius: 6px; border-left: 4px solid ${COLORS[idx % COLORS.length]};">
+                        <label style="margin: 0; font-weight: 600;">${task}</label>
+                        <input type="number" step="0.25" min="0.25" value="${hours.toFixed(2)}" 
+                               onchange="updateTaskHoursManual('${task}', this.value)"
+                               style="width: 100px; padding: 8px; border: 2px solid #e0e4e8; border-radius: 6px; font-family: 'Space Mono', monospace; font-weight: 600;">
+                    </div>
+                `;
+            }).join('');
+            
             document.getElementById('taskBreakdown').innerHTML = selectedTasks.map((task, idx) => {
                 const hours = taskHours[task];
                 const h = Math.floor(hours);
@@ -649,6 +657,40 @@
             // Support tactile
             document.addEventListener('touchmove', onDrag);
             document.addEventListener('touchend', stopDrag);
+        }
+        
+        function updateTaskHoursManual(task, value) {
+            const newHours = parseFloat(value);
+            if (newHours < 0.25) return;
+            
+            const oldHours = taskHours[task];
+            const diff = newHours - oldHours;
+            
+            // Ajuster les autres tâches proportionnellement
+            const otherTasks = selectedTasks.filter(t => t !== task);
+            const otherTotal = otherTasks.reduce((sum, t) => sum + taskHours[t], 0);
+            
+            if (otherTotal > 0 && (totalHours - newHours) >= 0.25 * otherTasks.length) {
+                taskHours[task] = newHours;
+                const remaining = totalHours - newHours;
+                
+                otherTasks.forEach(t => {
+                    const proportion = taskHours[t] / otherTotal;
+                    taskHours[t] = Math.max(0.25, remaining * proportion);
+                });
+                
+                // Ajuster pour que le total soit exact
+                const actualTotal = Object.values(taskHours).reduce((sum, h) => sum + h, 0);
+                const adjustment = totalHours - actualTotal;
+                if (Math.abs(adjustment) > 0.01) {
+                    taskHours[otherTasks[0]] += adjustment;
+                }
+                
+                renderSlider();
+            } else {
+                // Réinitialiser la valeur si invalide
+                renderSlider();
+            }
         }
         
         function onDrag(e) {
@@ -738,7 +780,6 @@
             
             selectedTasks = [];
             taskHours = {};
-            renderSelectedTasks();
             
             calculateTotalHours();
             load7Days();
@@ -776,12 +817,18 @@
                 const totalStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
                 const dayId = `day-${date}`;
                 
+                // Afficher "Aujourd'hui" pour le jour courant
+                const todayStr = new Date().toISOString().split('T')[0];
+                const displayText = date === todayStr 
+                    ? "Aujourd'hui" 
+                    : new Date(date).toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'});
+                
                 return `
                     <div style="background: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid var(--primary);">
                         <div onclick="toggleDay('${dayId}')" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span id="${dayId}-arrow" style="transition: transform 0.3s;">▶</span>
-                                <strong>${new Date(date).toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'})}</strong>
+                                <strong>${displayText}</strong>
                             </div>
                             <span style="font-family: 'Space Mono', monospace; font-weight: 700; color: var(--secondary);">${totalStr}</span>
                         </div>
@@ -1106,7 +1153,6 @@
             
             // Sélectionner les tâches
             selectedTasks = copyData.map(e => e.task);
-            renderSelectedTasks();
             updateTaskListHighlight();
             calculateTotalHours();
             
