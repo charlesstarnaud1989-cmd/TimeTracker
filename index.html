@@ -254,8 +254,20 @@
                     </div>
 
                     <div class="form-group" style="margin-top: 20px;">
-                        <label>Sélectionnez les tâches effectuées</label>
-                        <div id="taskCheckboxes" style="display: grid; gap: 10px; margin-top: 10px;"></div>
+                        <label>Tâches effectuées</label>
+                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                            <select id="taskSelect" style="flex: 1;">
+                                <option value="">-- Sélectionnez une tâche --</option>
+                            </select>
+                            <button type="button" onclick="addTaskToList()" style="width: auto; padding: 10px 20px;">➕ Ajouter</button>
+                        </div>
+                        <div id="selectedTasksList" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="button" onclick="showCopyDialog()" style="background: var(--accent); margin-top: 10px;">
+                            📋 Copier la journée d'un collègue
+                        </button>
                     </div>
 
                     <div id="taskAllocation" style="margin-top: 25px; display: none;">
@@ -273,8 +285,8 @@
             </div>
 
             <div class="card">
-                <h2 style="color: var(--primary); margin-bottom: 20px;">📋 Mes entrées récentes</h2>
-                <div id="entriesList">Chargement...</div>
+                <h2 style="color: var(--primary); margin-bottom: 20px;">📅 Mes 7 derniers jours</h2>
+                <div id="last7Days"></div>
             </div>
         </div>
 
@@ -316,6 +328,47 @@
                 <h3 style="color: var(--primary); margin-bottom: 15px;">📊 Rapport hebdomadaire</h3>
                 <input type="date" id="weekStart" onchange="loadWeeklyReport()" style="margin-bottom: 15px;">
                 <div id="weeklyReport"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE COPIER -->
+    <div id="copyModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; padding: 20px;">
+        <div class="card" style="max-width: 500px; margin: 50px auto;">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">Copier la journée d'un collègue</h2>
+            <div class="form-group">
+                <label>Employé</label>
+                <select id="copyEmployeeSelect"></select>
+            </div>
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="copyDateSelect">
+            </div>
+            <div id="copyPreview" style="margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; display: none;"></div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="loadCopyPreview()" style="flex: 1; background: var(--secondary);">Charger</button>
+                <button onclick="applyCopy()" style="flex: 1; background: var(--accent);">Appliquer</button>
+                <button onclick="closeCopyModal()" style="flex: 1; background: #999;">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE ÉDITER -->
+    <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; padding: 20px;">
+        <div class="card" style="max-width: 500px; margin: 50px auto;">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">Modifier l'entrée</h2>
+            <div class="form-group">
+                <label>Tâche</label>
+                <input type="text" id="editTask" readonly style="background: #f0f0f0;">
+            </div>
+            <div class="form-group">
+                <label>Heures</label>
+                <input type="number" id="editHours" step="0.25" min="0">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="saveEdit()" style="flex: 1; background: var(--secondary);">Sauvegarder</button>
+                <button onclick="deleteEntry()" style="flex: 1; background: #e74c3c;">Supprimer</button>
+                <button onclick="closeEditModal()" style="flex: 1; background: #999;">Annuler</button>
             </div>
         </div>
     </div>
@@ -401,19 +454,75 @@
             
             await loadTasksForEmployee();
             calculateTotalHours();
-            loadRecentEntries();
+            load7Days();
         }
         
         async function loadTasksForEmployee() {
-            const {data} = await sb.from('tasks').select('name').order('name');
-            allTasks = data || [];
+            // Charger toutes les tâches
+            const {data: allTasksData} = await sb.from('tasks').select('name').order('name');
+            allTasks = allTasksData || [];
             
-            document.getElementById('taskCheckboxes').innerHTML = allTasks.map(t => `
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" value="${t.name}" onchange="updateTaskList()" style="margin-right: 10px; width: 18px; height: 18px;">
-                    <span>${t.name}</span>
-                </label>
+            // Charger l'historique de l'employé pour calculer la fréquence
+            const {data: history} = await sb
+                .from('time_entries')
+                .select('task')
+                .eq('employee_id', currentUser.id);
+            
+            // Compter la fréquence de chaque tâche
+            const taskFreq = {};
+            (history || []).forEach(e => {
+                taskFreq[e.task] = (taskFreq[e.task] || 0) + 1;
+            });
+            
+            // Trier les tâches par fréquence (plus fréquent en premier)
+            const sortedTasks = [...allTasks].sort((a, b) => {
+                const freqA = taskFreq[a.name] || 0;
+                const freqB = taskFreq[b.name] || 0;
+                return freqB - freqA;
+            });
+            
+            // Remplir le select
+            document.getElementById('taskSelect').innerHTML = 
+                '<option value="">-- Sélectionnez une tâche --</option>' +
+                sortedTasks.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+        }
+        
+        function addTaskToList() {
+            const select = document.getElementById('taskSelect');
+            const task = select.value;
+            
+            if (!task || selectedTasks.includes(task)) return;
+            
+            selectedTasks.push(task);
+            select.value = '';
+            renderSelectedTasks();
+            
+            if (totalHours > 0) {
+                document.getElementById('taskAllocation').style.display = 'block';
+                initTaskHours();
+                renderSlider();
+            }
+        }
+        
+        function renderSelectedTasks() {
+            document.getElementById('selectedTasksList').innerHTML = selectedTasks.map(task => `
+                <span style="background: var(--secondary); color: white; padding: 8px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;">
+                    ${task}
+                    <button type="button" onclick="removeTask('${task}')" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: auto; font-size: 1.2rem;">×</button>
+                </span>
             `).join('');
+        }
+        
+        function removeTask(task) {
+            selectedTasks = selectedTasks.filter(t => t !== task);
+            renderSelectedTasks();
+            
+            if (selectedTasks.length === 0) {
+                document.getElementById('taskAllocation').style.display = 'none';
+            } else {
+                initTaskHours();
+                renderSlider();
+            }
         }
         
         function calculateTotalHours() {
@@ -593,36 +702,66 @@
             document.getElementById('lunchHours').value = '1';
             document.getElementById('taskAllocation').style.display = 'none';
             
-            document.querySelectorAll('#taskCheckboxes input').forEach(cb => cb.checked = false);
             selectedTasks = [];
             taskHours = {};
+            renderSelectedTasks();
             
             calculateTotalHours();
-            loadRecentEntries();
+            load7Days();
+            await loadTasksForEmployee(); // Recharger pour mettre à jour la fréquence
         }
         
-        async function loadRecentEntries() {
+        async function load7Days() {
+            const today = new Date();
+            const days = [];
+            
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() - i);
+                days.push(date.toISOString().split('T')[0]);
+            }
+            
             const {data} = await sb
                 .from('time_entries')
                 .select()
                 .eq('employee_id', currentUser.id)
-                .order('date', {ascending: false})
-                .limit(10);
+                .in('date', days)
+                .order('date', {ascending: false});
             
-            if (!data || data.length === 0) {
-                document.getElementById('entriesList').innerHTML = '<p style="color: #999;">Aucune entrée</p>';
-                return;
-            }
+            const groupedByDate = {};
+            (data || []).forEach(e => {
+                if (!groupedByDate[e.date]) groupedByDate[e.date] = [];
+                groupedByDate[e.date].push(e);
+            });
             
-            document.getElementById('entriesList').innerHTML = data.map(e => {
-                const h = Math.floor(e.hours);
-                const m = Math.round((e.hours - h) * 60);
-                const timeStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
+            document.getElementById('last7Days').innerHTML = days.map(date => {
+                const entries = groupedByDate[date] || [];
+                const total = entries.reduce((sum, e) => sum + e.hours, 0);
+                const h = Math.floor(total);
+                const m = Math.round((total - h) * 60);
+                const totalStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
                 
                 return `
-                    <div style="background: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid var(--secondary);">
-                        <strong>${e.task}</strong><br>
-                        <span style="color: #666;">${new Date(e.date).toLocaleDateString('fr-FR')} - ${timeStr}</span>
+                    <div style="background: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid var(--primary);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong>${new Date(date).toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'})}</strong>
+                            <span style="font-family: 'Space Mono', monospace; font-weight: 700; color: var(--secondary);">${totalStr}</span>
+                        </div>
+                        ${entries.length === 0 ? '<p style="color: #999; font-size: 0.9rem;">Aucune entrée</p>' : 
+                        entries.map(e => {
+                            const eh = Math.floor(e.hours);
+                            const em = Math.round((e.hours - eh) * 60);
+                            const eStr = em > 0 ? `${eh}h${em.toString().padStart(2,'0')}` : `${eh}h`;
+                            return `
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e0e0e0;">
+                                    <span>${e.task}</span>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <span style="font-family: 'Space Mono', monospace;">${eStr}</span>
+                                        <button onclick="editEntry('${e.id}')" style="width: auto; padding: 5px 10px; font-size: 0.85rem; background: var(--accent);">✏️</button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 `;
             }).join('');
@@ -781,6 +920,163 @@
             document.getElementById('adminView').style.display = 'none';
             document.getElementById('code').value = '';
             document.getElementById('pin').value = '';
+        }
+        
+        // ============== COPIER JOURNÉE ==============
+        let copyData = null;
+        
+        async function showCopyDialog() {
+            document.getElementById('copyModal').style.display = 'block';
+            
+            // Charger la liste des employés
+            const {data} = await sb.from('employees').select('id, name').order('name');
+            document.getElementById('copyEmployeeSelect').innerHTML = 
+                '<option value="">-- Sélectionnez --</option>' +
+                (data || []).map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+            
+            document.getElementById('copyDateSelect').valueAsDate = new Date();
+            document.getElementById('copyPreview').style.display = 'none';
+        }
+        
+        async function loadCopyPreview() {
+            const empId = document.getElementById('copyEmployeeSelect').value;
+            const date = document.getElementById('copyDateSelect').value;
+            
+            if (!empId || !date) {
+                alert('Sélectionnez un employé et une date');
+                return;
+            }
+            
+            const {data} = await sb
+                .from('time_entries')
+                .select()
+                .eq('employee_id', empId)
+                .eq('date', date);
+            
+            if (!data || data.length === 0) {
+                document.getElementById('copyPreview').innerHTML = '<p style="color: #999;">Aucune entrée pour cette date</p>';
+                document.getElementById('copyPreview').style.display = 'block';
+                copyData = null;
+                return;
+            }
+            
+            copyData = data;
+            const total = data.reduce((sum, e) => sum + e.hours, 0);
+            const h = Math.floor(total);
+            const m = Math.round((total - h) * 60);
+            const totalStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
+            
+            document.getElementById('copyPreview').innerHTML = `
+                <strong>Aperçu (${totalStr}) :</strong>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    ${data.map(e => {
+                        const eh = Math.floor(e.hours);
+                        const em = Math.round((e.hours - eh) * 60);
+                        const eStr = em > 0 ? `${eh}h${em.toString().padStart(2,'0')}` : `${eh}h`;
+                        return `<li>${e.task} : ${eStr}</li>`;
+                    }).join('')}
+                </ul>
+            `;
+            document.getElementById('copyPreview').style.display = 'block';
+        }
+        
+        function applyCopy() {
+            if (!copyData) {
+                alert('Chargez d\'abord un aperçu');
+                return;
+            }
+            
+            // Remplir le formulaire
+            document.getElementById('startTime').value = copyData[0].start_time || '7:30';
+            document.getElementById('endTime').value = copyData[0].end_time || '16:30';
+            
+            selectedTasks = copyData.map(e => e.task);
+            renderSelectedTasks();
+            
+            calculateTotalHours();
+            
+            // Initialiser les heures des tâches
+            taskHours = {};
+            copyData.forEach(e => {
+                taskHours[e.task] = e.hours;
+            });
+            
+            document.getElementById('taskAllocation').style.display = 'block';
+            renderSlider();
+            
+            closeCopyModal();
+        }
+        
+        function closeCopyModal() {
+            document.getElementById('copyModal').style.display = 'none';
+            copyData = null;
+        }
+        
+        // ============== ÉDITER ENTRÉE ==============
+        let editingEntry = null;
+        
+        async function editEntry(id) {
+            const {data, error} = await sb
+                .from('time_entries')
+                .select()
+                .eq('id', id)
+                .single();
+            
+            if (error || !data) {
+                alert('Erreur de chargement');
+                return;
+            }
+            
+            editingEntry = data;
+            document.getElementById('editTask').value = data.task;
+            document.getElementById('editHours').value = data.hours;
+            document.getElementById('editModal').style.display = 'block';
+        }
+        
+        async function saveEdit() {
+            if (!editingEntry) return;
+            
+            const newHours = parseFloat(document.getElementById('editHours').value);
+            
+            if (newHours <= 0) {
+                alert('Les heures doivent être supérieures à 0');
+                return;
+            }
+            
+            const {error} = await sb
+                .from('time_entries')
+                .update({ hours: newHours })
+                .eq('id', editingEntry.id);
+            
+            if (error) {
+                alert('Erreur: ' + error.message);
+                return;
+            }
+            
+            closeEditModal();
+            load7Days();
+        }
+        
+        async function deleteEntry() {
+            if (!editingEntry || !confirm('Supprimer cette entrée ?')) return;
+            
+            const {error} = await sb
+                .from('time_entries')
+                .delete()
+                .eq('id', editingEntry.id);
+            
+            if (error) {
+                alert('Erreur: ' + error.message);
+                return;
+            }
+            
+            closeEditModal();
+            load7Days();
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            editingEntry = null;
         }
     </script>
 </body>
