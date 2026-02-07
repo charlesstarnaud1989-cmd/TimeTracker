@@ -38,7 +38,7 @@
         }
 
         h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
-        .subtitle { opacity: 0.9; font-size: 0.95rem; }
+        .subtitle { opacity: 0.9; font-size: 0.85rem; }
 
         .card {
             background: var(--card-bg);
@@ -222,7 +222,7 @@
                 <form id="timeForm">
                     <div class="form-group">
                         <label for="date">Date *</label>
-                        <input type="date" id="date" required style="padding-left: 40px;">
+                        <input type="date" id="date" required>
                     </div>
 
                     <div class="time-inputs">
@@ -273,8 +273,6 @@
                         <div class="slider-bar" id="sliderBar"></div>
                         
                         <div id="manualInputs" style="display: grid; gap: 10px; margin-bottom: 20px;"></div>
-                        
-                        <div id="taskBreakdown"></div>
                     </div>
 
                     <button type="submit" style="margin-top: 25px;">➕ Enregistrer la journée</button>
@@ -608,8 +606,8 @@
                     handle.dataset.index = idx;
                     // Support souris
                     handle.addEventListener('mousedown', startDrag);
-                    // Support tactile
-                    handle.addEventListener('touchstart', startDrag);
+                    // Support tactile avec options pour permettre preventDefault
+                    handle.addEventListener('touchstart', startDrag, { passive: false });
                     section.appendChild(handle);
                 }
                 
@@ -619,27 +617,16 @@
             // Ajouter les inputs manuels
             document.getElementById('manualInputs').innerHTML = selectedTasks.map((task, idx) => {
                 const hours = taskHours[task];
+                const h = Math.floor(hours);
+                const m = Math.round((hours - h) * 60);
+                const timeValue = `${h}:${m.toString().padStart(2, '0')}`;
+                
                 return `
                     <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 10px; background: #f9f9f9; border-radius: 6px; border-left: 4px solid ${COLORS[idx % COLORS.length]};">
                         <label style="margin: 0; font-weight: 600;">${task}</label>
-                        <input type="number" step="0.25" min="0.25" value="${hours.toFixed(2)}" 
-                               onchange="updateTaskHoursManual('${task}', this.value)"
-                               style="width: 100px; padding: 8px; border: 2px solid #e0e4e8; border-radius: 6px; font-family: 'Space Mono', monospace; font-weight: 600;">
-                    </div>
-                `;
-            }).join('');
-            
-            document.getElementById('taskBreakdown').innerHTML = selectedTasks.map((task, idx) => {
-                const hours = taskHours[task];
-                const h = Math.floor(hours);
-                const m = Math.round((hours - h) * 60);
-                const timeStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
-                const pct = ((hours / totalHours) * 100).toFixed(1);
-                
-                return `
-                    <div class="breakdown-item" style="border-color: ${COLORS[idx % COLORS.length]}">
-                        <span>${task} <small style="opacity: 0.6;">(${pct}%)</small></span>
-                        <span style="color: ${COLORS[idx % COLORS.length]}; font-family: 'Space Mono', monospace; font-weight: 700;">${timeStr}</span>
+                        <input type="text" value="${timeValue}" placeholder="0:00"
+                               onchange="updateTaskHoursFromTime('${task}', this.value)"
+                               style="width: 100px; padding: 8px; border: 2px solid #e0e4e8; border-radius: 6px; font-family: 'Space Mono', monospace; font-weight: 600; text-align: center;">
                     </div>
                 `;
             }).join('');
@@ -654,8 +641,8 @@
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
             
-            // Support tactile
-            document.addEventListener('touchmove', onDrag);
+            // Support tactile avec passive: false pour permettre preventDefault
+            document.addEventListener('touchmove', onDrag, { passive: false });
             document.addEventListener('touchend', stopDrag);
         }
         
@@ -693,9 +680,38 @@
             }
         }
         
+        function updateTaskHoursFromTime(task, value) {
+            // Parser le format "h:mm" ou "hh:mm"
+            const parts = value.split(':');
+            if (parts.length !== 2) {
+                renderSlider();
+                return;
+            }
+            
+            const h = parseInt(parts[0]) || 0;
+            const m = parseInt(parts[1]) || 0;
+            
+            if (m < 0 || m >= 60) {
+                renderSlider();
+                return;
+            }
+            
+            const newHours = h + (m / 60);
+            if (newHours < 0.25) {
+                renderSlider();
+                return;
+            }
+            
+            updateTaskHoursManual(task, newHours);
+        }
+        
         function onDrag(e) {
             if (!isDragging) return;
-            e.preventDefault();
+            
+            // Empêcher le scroll sur mobile
+            if (e.cancelable) {
+                e.preventDefault();
+            }
             
             // Obtenir la position X (souris ou tactile)
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
