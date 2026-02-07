@@ -254,14 +254,10 @@
                     </div>
 
                     <div class="form-group" style="margin-top: 20px;">
-                        <label>Tâches effectuées</label>
-                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-                            <select id="taskSelect" style="flex: 1;">
-                                <option value="">-- Sélectionnez une tâche --</option>
-                            </select>
-                            <button type="button" onclick="addTaskToList()" style="width: auto; padding: 10px 20px;">➕ Ajouter</button>
-                        </div>
-                        <div id="selectedTasksList" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                        <label>Tâches effectuées (maintenez Ctrl/Cmd pour sélectionner plusieurs)</label>
+                        <select id="taskSelect" multiple style="height: 150px;" onchange="updateTaskSelection()">
+                        </select>
+                        <div id="selectedTasksList" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;"></div>
                     </div>
 
                     <div class="form-group">
@@ -483,46 +479,29 @@
             
             // Remplir le select
             document.getElementById('taskSelect').innerHTML = 
-                '<option value="">-- Sélectionnez une tâche --</option>' +
                 sortedTasks.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
         }
         
-        function addTaskToList() {
+        function updateTaskSelection() {
             const select = document.getElementById('taskSelect');
-            const task = select.value;
-            
-            if (!task || selectedTasks.includes(task)) return;
-            
-            selectedTasks.push(task);
-            select.value = '';
+            selectedTasks = Array.from(select.selectedOptions).map(opt => opt.value);
             renderSelectedTasks();
             
-            if (totalHours > 0) {
+            if (selectedTasks.length > 0 && totalHours > 0) {
                 document.getElementById('taskAllocation').style.display = 'block';
                 initTaskHours();
                 renderSlider();
+            } else {
+                document.getElementById('taskAllocation').style.display = 'none';
             }
         }
         
         function renderSelectedTasks() {
-            document.getElementById('selectedTasksList').innerHTML = selectedTasks.map(task => `
-                <span style="background: var(--secondary); color: white; padding: 8px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;">
+            document.getElementById('selectedTasksList').innerHTML = selectedTasks.map((task, idx) => `
+                <span style="background: ${COLORS[idx % COLORS.length]}; color: white; padding: 8px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;">
                     ${task}
-                    <button type="button" onclick="removeTask('${task}')" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: auto; font-size: 1.2rem;">×</button>
                 </span>
             `).join('');
-        }
-        
-        function removeTask(task) {
-            selectedTasks = selectedTasks.filter(t => t !== task);
-            renderSelectedTasks();
-            
-            if (selectedTasks.length === 0) {
-                document.getElementById('taskAllocation').style.display = 'none';
-            } else {
-                initTaskHours();
-                renderSlider();
-            }
         }
         
         function calculateTotalHours() {
@@ -734,37 +713,57 @@
                 groupedByDate[e.date].push(e);
             });
             
-            document.getElementById('last7Days').innerHTML = days.map(date => {
+            document.getElementById('last7Days').innerHTML = days.map((date, idx) => {
                 const entries = groupedByDate[date] || [];
                 const total = entries.reduce((sum, e) => sum + e.hours, 0);
                 const h = Math.floor(total);
                 const m = Math.round((total - h) * 60);
                 const totalStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
+                const dayId = `day-${date}`;
                 
                 return `
                     <div style="background: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid var(--primary);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <strong>${new Date(date).toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'})}</strong>
+                        <div onclick="toggleDay('${dayId}')" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span id="${dayId}-arrow" style="transition: transform 0.3s;">▶</span>
+                                <strong>${new Date(date).toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'})}</strong>
+                            </div>
                             <span style="font-family: 'Space Mono', monospace; font-weight: 700; color: var(--secondary);">${totalStr}</span>
                         </div>
-                        ${entries.length === 0 ? '<p style="color: #999; font-size: 0.9rem;">Aucune entrée</p>' : 
-                        entries.map(e => {
-                            const eh = Math.floor(e.hours);
-                            const em = Math.round((e.hours - eh) * 60);
-                            const eStr = em > 0 ? `${eh}h${em.toString().padStart(2,'0')}` : `${eh}h`;
-                            return `
-                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e0e0e0;">
-                                    <span>${e.task}</span>
-                                    <div style="display: flex; gap: 10px; align-items: center;">
-                                        <span style="font-family: 'Space Mono', monospace;">${eStr}</span>
-                                        <button onclick="editEntry('${e.id}')" style="width: auto; padding: 5px 10px; font-size: 0.85rem; background: var(--accent);">✏️</button>
+                        
+                        <div id="${dayId}" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0;">
+                            ${entries.length === 0 ? '<p style="color: #999; font-size: 0.9rem;">Aucune entrée</p>' : 
+                            entries.map(e => {
+                                const eh = Math.floor(e.hours);
+                                const em = Math.round((e.hours - eh) * 60);
+                                const eStr = em > 0 ? `${eh}h${em.toString().padStart(2,'0')}` : `${eh}h`;
+                                return `
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e0e0e0;">
+                                        <span>${e.task}</span>
+                                        <div style="display: flex; gap: 10px; align-items: center;">
+                                            <span style="font-family: 'Space Mono', monospace;">${eStr}</span>
+                                            <button onclick="editEntry('${e.id}')" style="width: auto; padding: 5px 10px; font-size: 0.85rem; background: var(--accent);">✏️</button>
+                                        </div>
                                     </div>
-                                </div>
-                            `;
-                        }).join('')}
+                                `;
+                            }).join('')}
+                        </div>
                     </div>
                 `;
             }).join('');
+        }
+        
+        function toggleDay(dayId) {
+            const content = document.getElementById(dayId);
+            const arrow = document.getElementById(dayId + '-arrow');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                arrow.style.transform = 'rotate(90deg)';
+            } else {
+                content.style.display = 'none';
+                arrow.style.transform = 'rotate(0deg)';
+            }
         }
         
         // ============== ADMIN ==============
@@ -990,9 +989,14 @@
             document.getElementById('startTime').value = copyData[0].start_time || '7:30';
             document.getElementById('endTime').value = copyData[0].end_time || '16:30';
             
+            // Sélectionner les tâches dans le select multiple
             selectedTasks = copyData.map(e => e.task);
-            renderSelectedTasks();
+            const select = document.getElementById('taskSelect');
+            Array.from(select.options).forEach(opt => {
+                opt.selected = selectedTasks.includes(opt.value);
+            });
             
+            renderSelectedTasks();
             calculateTotalHours();
             
             // Initialiser les heures des tâches
