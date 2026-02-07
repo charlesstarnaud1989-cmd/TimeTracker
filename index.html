@@ -3,130 +3,319 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivi du Temps</title>
+    <title>Suivi du Temps - Complet</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #1a5f7a;
+            --secondary: #57a773;
+            --accent: #f39c12;
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text: #2c3e50;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Archivo', sans-serif;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            color: var(--text);
             min-height: 100vh;
             padding: 20px;
         }
-        .container { max-width: 500px; margin: 50px auto; }
-        .card {
-            background: white;
-            border-radius: 15px;
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        header {
+            background: var(--primary);
+            color: white;
             padding: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            border-radius: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         }
-        h1 { color: #333; margin-bottom: 10px; font-size: 1.8rem; }
-        .subtitle { color: #666; margin-bottom: 30px; }
-        input, select, button {
+
+        h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+        .subtitle { opacity: 0.9; font-size: 0.95rem; }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+
+        .form-group { margin-bottom: 20px; }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+
+        input, select {
             width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 2px solid #e0e0e0;
+            padding: 12px 16px;
+            border: 2px solid #e0e4e8;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 1rem;
+            font-family: 'Archivo', sans-serif;
         }
+
         input:focus, select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26, 95, 122, 0.1);
         }
+
+        .time-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
         button {
-            background: #667eea;
+            background: var(--secondary);
             color: white;
             border: none;
-            cursor: pointer;
-            font-weight: bold;
-            margin-top: 20px;
-        }
-        button:hover { background: #5568d3; }
-        .error {
-            background: #fee;
-            color: #c33;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            display: none;
-        }
-        .success {
-            background: #efe;
-            color: #3c3;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-        }
-        label { display: block; margin-top: 15px; font-weight: bold; color: #555; }
-        #appView { display: none; }
-        .entry {
-            background: #f9f9f9;
-            padding: 15px;
-            margin: 10px 0;
+            padding: 14px 28px;
             border-radius: 8px;
-            border-left: 4px solid #667eea;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            font-family: 'Archivo', sans-serif;
         }
-        .logout { background: #e74c3c; margin-bottom: 20px; }
-        .logout:hover { background: #c0392b; }
+
+        button:hover {
+            background: #4a8f64;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(87, 167, 115, 0.3);
+        }
+
+        .slider-bar {
+            position: relative;
+            height: 80px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 30px;
+            display: flex;
+        }
+
+        .task-section {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            padding: 10px 5px;
+            position: relative;
+            border-right: 2px solid white;
+        }
+
+        .task-section:last-child { border-right: none; }
+
+        .task-name { font-size: 0.9rem; margin-bottom: 5px; text-align: center; }
+        .task-hours { font-size: 1rem; font-family: 'Space Mono', monospace; font-weight: 700; }
+
+        .resize-handle {
+            position: absolute;
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 40px;
+            background: white;
+            border-radius: 8px;
+            cursor: ew-resize;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #ddd;
+        }
+
+        .resize-handle::after { content: '⋮'; color: #666; font-size: 1.2rem; }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 4px solid;
+        }
+
+        .error {
+            background: #ffe5e5;
+            color: #c0392b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        #adminView, #employeeView { display: none; }
+
+        @media (max-width: 768px) {
+            .time-inputs { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- LOGIN -->
-        <div id="loginView" class="card">
-            <h1>⏱️ Suivi du Temps</h1>
-            <p class="subtitle">Connexion</p>
-            <div id="loginError" class="error"></div>
-            <form id="loginForm">
-                <label>Code employé</label>
-                <input type="text" id="code" required placeholder="EMP001" autocomplete="off">
-                <label>PIN</label>
-                <input type="password" id="pin" required placeholder="1234" maxlength="4">
-                <button type="submit">Se connecter</button>
-            </form>
+        <div id="loginView">
+            <header>
+                <h1>⏱️ Suivi du Temps de Travail</h1>
+                <p class="subtitle">Connexion</p>
+            </header>
+            <div class="card">
+                <h2 style="margin-bottom: 20px; color: var(--primary);">Connexion</h2>
+                <div id="loginError" class="error" style="display: none;"></div>
+                
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="code">Code employé *</label>
+                        <input type="text" id="code" required placeholder="EMP001" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="pin">Code PIN *</label>
+                        <input type="password" id="pin" required placeholder="4 chiffres" maxlength="4">
+                    </div>
+                    <button type="submit">🔐 Se connecter</button>
+                </form>
+            </div>
         </div>
 
-        <!-- APP -->
-        <div id="appView">
+        <!-- EMPLOYÉ -->
+        <div id="employeeView">
+            <header>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h1>⏱️ Suivi du Temps</h1>
+                        <p class="subtitle" id="employeeName"></p>
+                    </div>
+                    <button onclick="logout()" style="width: auto; padding: 10px 20px; background: rgba(255,255,255,0.2);">
+                        🚪 Déconnexion
+                    </button>
+                </div>
+            </header>
+
             <div class="card">
-                <button class="logout" onclick="logout()">Déconnexion</button>
-                <h1 id="userName"></h1>
-                <p class="subtitle">Enregistrer votre temps</p>
+                <h2 style="margin-bottom: 20px; color: var(--primary);">Nouvelle Journée</h2>
                 
                 <form id="timeForm">
-                    <label>Date</label>
-                    <input type="date" id="date" required>
-                    
-                    <label>Arrivée</label>
-                    <select id="start" required></select>
-                    
-                    <label>Départ</label>
-                    <select id="end" required></select>
-                    
-                    <label>Dîner</label>
-                    <select id="lunch">
-                        <option value="0">Aucun</option>
-                        <option value="0.5">30 min</option>
-                        <option value="1" selected>1 heure</option>
-                        <option value="1.5">1h30</option>
-                    </select>
-                    
-                    <label>Tâche</label>
-                    <select id="task" required>
-                        <option value="">Sélectionnez...</option>
-                    </select>
-                    
-                    <label>Heures</label>
-                    <input type="number" id="hours" step="0.25" min="0" required placeholder="8">
-                    
-                    <button type="submit">Enregistrer</button>
+                    <div class="form-group">
+                        <label for="date">Date *</label>
+                        <input type="date" id="date" required>
+                    </div>
+
+                    <div class="time-inputs">
+                        <div class="form-group">
+                            <label for="startTime">Heure d'arrivée *</label>
+                            <select id="startTime" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="endTime">Heure de départ *</label>
+                            <select id="endTime" required></select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lunchHours">Temps de dîner</label>
+                        <select id="lunchHours">
+                            <option value="0">Aucun</option>
+                            <option value="0.25">15 minutes</option>
+                            <option value="0.5">30 minutes</option>
+                            <option value="0.75">45 minutes</option>
+                            <option value="1" selected>1 heure</option>
+                            <option value="1.25">1h15</option>
+                            <option value="1.5">1h30</option>
+                            <option value="2">2 heures</option>
+                        </select>
+                    </div>
+
+                    <div style="background: linear-gradient(135deg, var(--secondary) 0%, #4a8f64 100%); color: white; padding: 15px; border-radius: 8px; text-align: center; margin-top: 15px;" id="totalDisplay">
+                        <strong>Durée totale :</strong> <span id="totalHours">0h00</span>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Sélectionnez les tâches effectuées</label>
+                        <div id="taskCheckboxes" style="display: grid; gap: 10px; margin-top: 10px;"></div>
+                    </div>
+
+                    <div id="taskAllocation" style="margin-top: 25px; display: none;">
+                        <h3 style="color: var(--primary); margin-bottom: 15px;">Répartition du temps</h3>
+                        <p style="color: #666; margin-bottom: 20px;">Glissez les poignées pour ajuster</p>
+                        
+                        <div class="slider-bar" id="sliderBar"></div>
+                        <div id="taskBreakdown"></div>
+                    </div>
+
+                    <button type="submit" style="margin-top: 25px;">➕ Enregistrer la journée</button>
                 </form>
                 
-                <div id="success" class="success" style="display:none;">✅ Enregistré !</div>
-                
-                <h3 style="margin-top: 30px;">Mes dernières entrées</h3>
-                <div id="entries"></div>
+                <div id="successMsg" class="success" style="display: none;">✅ Journée enregistrée avec succès !</div>
+            </div>
+
+            <div class="card">
+                <h2 style="color: var(--primary); margin-bottom: 20px;">📋 Mes entrées récentes</h2>
+                <div id="entriesList">Chargement...</div>
+            </div>
+        </div>
+
+        <!-- ADMIN -->
+        <div id="adminView">
+            <header>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h1>⚙️ Administration</h1>
+                        <p class="subtitle">Gestion du système</p>
+                    </div>
+                    <button onclick="logout()" style="width: auto; padding: 10px 20px; background: rgba(255,255,255,0.2);">
+                        🚪 Déconnexion
+                    </button>
+                </div>
+            </header>
+
+            <div class="card">
+                <h3 style="color: var(--primary); margin-bottom: 15px;">👥 Employés</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="newEmpName" placeholder="Nom" style="width: 100%;">
+                    <input type="text" id="newEmpCode" placeholder="Code" style="width: 100%;">
+                    <input type="password" id="newEmpPin" placeholder="PIN" maxlength="4" style="width: 100%;">
+                    <button onclick="addEmployee()" style="width: auto; padding: 10px 20px;">➕</button>
+                </div>
+                <div id="employeeList"></div>
+            </div>
+
+            <div class="card">
+                <h3 style="color: var(--primary); margin-bottom: 15px;">📋 Tâches</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="newTaskName" placeholder="Nom de la tâche" style="flex: 1;">
+                    <button onclick="addTask()" style="width: auto; padding: 10px 20px;">➕</button>
+                </div>
+                <div id="taskList"></div>
+            </div>
+
+            <div class="card">
+                <h3 style="color: var(--primary); margin-bottom: 15px;">📊 Rapport hebdomadaire</h3>
+                <input type="date" id="weekStart" onchange="loadWeeklyReport()" style="margin-bottom: 15px;">
+                <div id="weeklyReport"></div>
             </div>
         </div>
     </div>
@@ -136,29 +325,27 @@
         const SUPABASE_URL = 'https://negsevkdyscwlztbjvuy.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lZ3NldmtkeXNjd2x6dGJqdnV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3ODY5MzIsImV4cCI6MjA4NTM2MjkzMn0._lZ4QXV-5m3xKd8ut3jQchIl4R5P7yrjuYHlRNvHAFQ';
         
-        let sb, user;
+        const COLORS = ['#1a5f7a', '#57a773', '#f39c12', '#e74c3c', '#9b59b6', '#3498db', '#1abc9c'];
         
-        // Initialisation
+        let sb, currentUser, allTasks = [], selectedTasks = [], taskHours = {}, totalHours = 0;
+        let isDragging = false, dragHandleIndex = -1;
+        
+        // ============== INIT ==============
         window.addEventListener('DOMContentLoaded', async () => {
-            try {
-                sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                console.log('✅ Supabase initialisé');
-            } catch (e) {
-                alert('Erreur Supabase: ' + e.message);
-            }
+            sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log('✅ Supabase ready');
             
             document.getElementById('date').valueAsDate = new Date();
-            generateTimes();
-            loadTasks();
+            generateTimeOptions();
             
-            document.getElementById('loginForm').onsubmit = login;
-            document.getElementById('timeForm').onsubmit = saveTime;
-            document.getElementById('start').onchange = calcHours;
-            document.getElementById('end').onchange = calcHours;
-            document.getElementById('lunch').onchange = calcHours;
+            document.getElementById('loginForm').onsubmit = handleLogin;
+            document.getElementById('timeForm').onsubmit = handleTimeSubmit;
+            document.getElementById('startTime').onchange = calculateTotalHours;
+            document.getElementById('endTime').onchange = calculateTotalHours;
+            document.getElementById('lunchHours').onchange = calculateTotalHours;
         });
         
-        function generateTimes() {
+        function generateTimeOptions() {
             const opts = [];
             for (let h = 5; h <= 20; h++) {
                 for (let m = 0; m < 60; m += 15) {
@@ -167,45 +354,21 @@
                     opts.push(`<option value="${val}">${txt}</option>`);
                 }
             }
-            document.getElementById('start').innerHTML = opts.join('');
-            document.getElementById('end').innerHTML = opts.join('');
-            document.getElementById('start').value = '7:30';
-            document.getElementById('end').value = '16:30';
+            document.getElementById('startTime').innerHTML = opts.join('');
+            document.getElementById('endTime').innerHTML = opts.join('');
+            document.getElementById('startTime').value = '7:30';
+            document.getElementById('endTime').value = '16:30';
         }
         
-        async function loadTasks() {
-            const {data} = await sb.from('tasks').select('name').order('name');
-            if (data) {
-                document.getElementById('task').innerHTML = 
-                    '<option value="">Sélectionnez...</option>' +
-                    data.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
-            }
-        }
-        
-        function calcHours() {
-            const start = document.getElementById('start').value.split(':');
-            const end = document.getElementById('end').value.split(':');
-            const lunch = parseFloat(document.getElementById('lunch').value);
-            
-            let h = parseInt(end[0]) - parseInt(start[0]);
-            let m = parseInt(end[1]) - parseInt(start[1]);
-            
-            if (m < 0) { h--; m += 60; }
-            if (h < 0) h += 24;
-            
-            const total = Math.max(0, h + m/60 - lunch);
-            document.getElementById('hours').value = total.toFixed(2);
-        }
-        
-        async function login(e) {
+        // ============== LOGIN ==============
+        async function handleLogin(e) {
             e.preventDefault();
             const code = document.getElementById('code').value.trim().toUpperCase();
             const pin = document.getElementById('pin').value.trim();
             
-            console.log('Login:', code, pin);
-            
             if (code === 'ADMIN' && pin === '0000') {
-                alert('Mode admin pas encore implémenté');
+                currentUser = { isAdmin: true };
+                showAdmin();
                 return;
             }
             
@@ -217,89 +380,405 @@
                     .eq('pin', pin)
                     .single();
                 
-                console.log('Résultat:', data, error);
-                
                 if (error || !data) {
                     document.getElementById('loginError').textContent = 'Code ou PIN incorrect';
                     document.getElementById('loginError').style.display = 'block';
                     return;
                 }
                 
-                user = data;
-                showApp();
+                currentUser = data;
+                showEmployee();
             } catch (err) {
-                console.error(err);
                 document.getElementById('loginError').textContent = 'Erreur: ' + err.message;
                 document.getElementById('loginError').style.display = 'block';
             }
         }
         
-        function showApp() {
+        async function showEmployee() {
             document.getElementById('loginView').style.display = 'none';
-            document.getElementById('appView').style.display = 'block';
-            document.getElementById('userName').textContent = user.name;
-            calcHours();
-            loadEntries();
+            document.getElementById('employeeView').style.display = 'block';
+            document.getElementById('employeeName').textContent = currentUser.name;
+            
+            await loadTasksForEmployee();
+            calculateTotalHours();
+            loadRecentEntries();
         }
         
-        async function saveTime(e) {
+        async function loadTasksForEmployee() {
+            const {data} = await sb.from('tasks').select('name').order('name');
+            allTasks = data || [];
+            
+            document.getElementById('taskCheckboxes').innerHTML = allTasks.map(t => `
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" value="${t.name}" onchange="updateTaskList()" style="margin-right: 10px; width: 18px; height: 18px;">
+                    <span>${t.name}</span>
+                </label>
+            `).join('');
+        }
+        
+        function calculateTotalHours() {
+            const start = document.getElementById('startTime').value.split(':');
+            const end = document.getElementById('endTime').value.split(':');
+            const lunch = parseFloat(document.getElementById('lunchHours').value) || 0;
+            
+            let h = parseInt(end[0]) - parseInt(start[0]);
+            let m = parseInt(end[1]) - parseInt(start[1]);
+            
+            if (m < 0) { h--; m += 60; }
+            if (h < 0) h += 24;
+            
+            totalHours = Math.max(0, h + m/60 - lunch);
+            
+            const hh = Math.floor(totalHours);
+            const mm = Math.round((totalHours - hh) * 60);
+            document.getElementById('totalHours').textContent = mm > 0 ? `${hh}h${mm.toString().padStart(2,'0')}` : `${hh}h`;
+            
+            if (selectedTasks.length > 0) {
+                initTaskHours();
+                renderSlider();
+            }
+        }
+        
+        function updateTaskList() {
+            const checkboxes = document.querySelectorAll('#taskCheckboxes input:checked');
+            selectedTasks = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (selectedTasks.length > 0 && totalHours > 0) {
+                document.getElementById('taskAllocation').style.display = 'block';
+                initTaskHours();
+                renderSlider();
+            } else {
+                document.getElementById('taskAllocation').style.display = 'none';
+            }
+        }
+        
+        function initTaskHours() {
+            const equalShare = totalHours / selectedTasks.length;
+            taskHours = {};
+            selectedTasks.forEach(task => taskHours[task] = equalShare);
+        }
+        
+        function renderSlider() {
+            const sliderBar = document.getElementById('sliderBar');
+            sliderBar.innerHTML = '';
+            
+            selectedTasks.forEach((task, idx) => {
+                const hours = taskHours[task];
+                const pct = (hours / totalHours) * 100;
+                
+                const section = document.createElement('div');
+                section.className = 'task-section';
+                section.style.width = pct + '%';
+                section.style.backgroundColor = COLORS[idx % COLORS.length];
+                
+                const h = Math.floor(hours);
+                const m = Math.round((hours - h) * 60);
+                const timeStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
+                
+                section.innerHTML = `
+                    <div class="task-name">${task}</div>
+                    <div class="task-hours">${timeStr}</div>
+                `;
+                
+                if (idx < selectedTasks.length - 1) {
+                    const handle = document.createElement('div');
+                    handle.className = 'resize-handle';
+                    handle.dataset.index = idx;
+                    handle.addEventListener('mousedown', startDrag);
+                    section.appendChild(handle);
+                }
+                
+                sliderBar.appendChild(section);
+            });
+            
+            document.getElementById('taskBreakdown').innerHTML = selectedTasks.map((task, idx) => {
+                const hours = taskHours[task];
+                const h = Math.floor(hours);
+                const m = Math.round((hours - h) * 60);
+                const timeStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
+                const pct = ((hours / totalHours) * 100).toFixed(1);
+                
+                return `
+                    <div class="breakdown-item" style="border-color: ${COLORS[idx % COLORS.length]}">
+                        <span>${task} <small style="opacity: 0.6;">(${pct}%)</small></span>
+                        <span style="color: ${COLORS[idx % COLORS.length]}; font-family: 'Space Mono', monospace; font-weight: 700;">${timeStr}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function startDrag(e) {
+            e.preventDefault();
+            isDragging = true;
+            dragHandleIndex = parseInt(e.target.dataset.index);
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', stopDrag);
+        }
+        
+        function onDrag(e) {
+            if (!isDragging) return;
+            
+            const rect = document.getElementById('sliderBar').getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mousePct = (mouseX / rect.width) * 100;
+            
+            let cumPct = 0;
+            for (let i = 0; i <= dragHandleIndex; i++) {
+                cumPct += (taskHours[selectedTasks[i]] / totalHours) * 100;
+            }
+            
+            const delta = mousePct - cumPct;
+            const deltaH = (delta / 100) * totalHours;
+            const roundedDelta = Math.round(deltaH * 4) / 4;
+            
+            const left = selectedTasks[dragHandleIndex];
+            const right = selectedTasks[dragHandleIndex + 1];
+            
+            const newLeft = Math.max(0.25, Math.min(
+                taskHours[left] + taskHours[right] - 0.25,
+                taskHours[left] + roundedDelta
+            ));
+            
+            const newRight = taskHours[left] + taskHours[right] - newLeft;
+            
+            if (newRight >= 0.25) {
+                taskHours[left] = newLeft;
+                taskHours[right] = newRight;
+                renderSlider();
+            }
+        }
+        
+        function stopDrag() {
+            isDragging = false;
+            document.removeEventListener('mousemove', onDrag);
+            document.removeEventListener('mouseup', stopDrag);
+        }
+        
+        async function handleTimeSubmit(e) {
             e.preventDefault();
             
-            const entry = {
-                employee_id: user.id,
-                employee_name: user.name,
-                date: document.getElementById('date').value,
-                task: document.getElementById('task').value,
-                hours: parseFloat(document.getElementById('hours').value),
-                start_time: document.getElementById('start').value,
-                end_time: document.getElementById('end').value
-            };
+            if (selectedTasks.length === 0) {
+                alert('Sélectionnez au moins une tâche');
+                return;
+            }
             
-            const {error} = await sb.from('time_entries').insert([entry]);
+            const date = document.getElementById('date').value;
+            const start = document.getElementById('startTime').value;
+            const end = document.getElementById('endTime').value;
+            
+            const entries = selectedTasks.map(task => ({
+                employee_id: currentUser.id,
+                employee_name: currentUser.name,
+                task: task,
+                date: date,
+                hours: taskHours[task],
+                start_time: start,
+                end_time: end
+            }));
+            
+            const {error} = await sb.from('time_entries').insert(entries);
             
             if (error) {
                 alert('Erreur: ' + error.message);
                 return;
             }
             
-            document.getElementById('success').style.display = 'block';
-            setTimeout(() => {
-                document.getElementById('success').style.display = 'none';
-            }, 3000);
+            document.getElementById('successMsg').style.display = 'block';
+            setTimeout(() => document.getElementById('successMsg').style.display = 'none', 3000);
             
             document.getElementById('timeForm').reset();
             document.getElementById('date').valueAsDate = new Date();
-            document.getElementById('start').value = '7:30';
-            document.getElementById('end').value = '16:30';
-            calcHours();
-            loadEntries();
+            document.getElementById('startTime').value = '7:30';
+            document.getElementById('endTime').value = '16:30';
+            document.getElementById('lunchHours').value = '1';
+            document.getElementById('taskAllocation').style.display = 'none';
+            
+            document.querySelectorAll('#taskCheckboxes input').forEach(cb => cb.checked = false);
+            selectedTasks = [];
+            taskHours = {};
+            
+            calculateTotalHours();
+            loadRecentEntries();
         }
         
-        async function loadEntries() {
+        async function loadRecentEntries() {
             const {data} = await sb
                 .from('time_entries')
                 .select()
-                .eq('employee_id', user.id)
+                .eq('employee_id', currentUser.id)
                 .order('date', {ascending: false})
-                .limit(5);
+                .limit(10);
             
             if (!data || data.length === 0) {
-                document.getElementById('entries').innerHTML = '<p style="color:#999;">Aucune entrée</p>';
+                document.getElementById('entriesList').innerHTML = '<p style="color: #999;">Aucune entrée</p>';
                 return;
             }
             
-            document.getElementById('entries').innerHTML = data.map(e => `
-                <div class="entry">
-                    <strong>${e.task}</strong><br>
-                    ${new Date(e.date).toLocaleDateString('fr-FR')} - ${e.hours}h
+            document.getElementById('entriesList').innerHTML = data.map(e => {
+                const h = Math.floor(e.hours);
+                const m = Math.round((e.hours - h) * 60);
+                const timeStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
+                
+                return `
+                    <div style="background: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid var(--secondary);">
+                        <strong>${e.task}</strong><br>
+                        <span style="color: #666;">${new Date(e.date).toLocaleDateString('fr-FR')} - ${timeStr}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // ============== ADMIN ==============
+        async function showAdmin() {
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('adminView').style.display = 'block';
+            
+            loadEmployeeList();
+            loadTaskList();
+            setCurrentWeek();
+            loadWeeklyReport();
+        }
+        
+        async function loadEmployeeList() {
+            const {data} = await sb.from('employees').select().order('name');
+            
+            document.getElementById('employeeList').innerHTML = (data || []).map(e => `
+                <div style="display: flex; justify-content: space-between; padding: 12px; background: #f8f9fa; border-radius: 6px; margin-bottom: 8px;">
+                    <div>
+                        <strong>${e.name}</strong>
+                        <span style="margin-left: 15px; color: #666; font-family: 'Space Mono', monospace;">${e.code}</span>
+                    </div>
+                    <button onclick="deleteEmployee('${e.id}')" style="width: auto; padding: 5px 15px; background: #e74c3c;">🗑️</button>
                 </div>
             `).join('');
         }
         
+        async function addEmployee() {
+            const name = document.getElementById('newEmpName').value.trim();
+            const code = document.getElementById('newEmpCode').value.trim().toUpperCase();
+            const pin = document.getElementById('newEmpPin').value.trim();
+            
+            if (!name || !code || !pin || pin.length !== 4) {
+                alert('Remplissez tous les champs (PIN = 4 chiffres)');
+                return;
+            }
+            
+            const {error} = await sb.from('employees').insert([{name, code, pin}]);
+            
+            if (error) {
+                alert('Erreur: ' + error.message);
+                return;
+            }
+            
+            document.getElementById('newEmpName').value = '';
+            document.getElementById('newEmpCode').value = '';
+            document.getElementById('newEmpPin').value = '';
+            loadEmployeeList();
+        }
+        
+        async function deleteEmployee(id) {
+            if (!confirm('Supprimer cet employé ?')) return;
+            await sb.from('employees').delete().eq('id', id);
+            loadEmployeeList();
+        }
+        
+        async function loadTaskList() {
+            const {data} = await sb.from('tasks').select().order('name');
+            
+            document.getElementById('taskList').innerHTML = (data || []).map(t => `
+                <div style="display: flex; justify-content: space-between; padding: 12px; background: #f8f9fa; border-radius: 6px; margin-bottom: 8px;">
+                    <strong>${t.name}</strong>
+                    <button onclick="deleteTask('${t.id}')" style="width: auto; padding: 5px 15px; background: #e74c3c;">🗑️</button>
+                </div>
+            `).join('');
+        }
+        
+        async function addTask() {
+            const name = document.getElementById('newTaskName').value.trim();
+            if (!name) return;
+            
+            const {error} = await sb.from('tasks').insert([{name}]);
+            
+            if (error) {
+                alert('Erreur: ' + error.message);
+                return;
+            }
+            
+            document.getElementById('newTaskName').value = '';
+            loadTaskList();
+        }
+        
+        async function deleteTask(id) {
+            if (!confirm('Supprimer cette tâche ?')) return;
+            await sb.from('tasks').delete().eq('id', id);
+            loadTaskList();
+        }
+        
+        function setCurrentWeek() {
+            const today = new Date();
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
+            document.getElementById('weekStart').valueAsDate = monday;
+        }
+        
+        async function loadWeeklyReport() {
+            const weekStart = new Date(document.getElementById('weekStart').value);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            
+            const {data} = await sb
+                .from('time_entries')
+                .select()
+                .gte('date', weekStart.toISOString().split('T')[0])
+                .lte('date', weekEnd.toISOString().split('T')[0]);
+            
+            const empHours = {};
+            (data || []).forEach(e => {
+                if (!empHours[e.employee_name]) empHours[e.employee_name] = 0;
+                empHours[e.employee_name] += e.hours;
+            });
+            
+            if (Object.keys(empHours).length === 0) {
+                document.getElementById('weeklyReport').innerHTML = '<p style="color: #999;">Aucune heure cette semaine</p>';
+                return;
+            }
+            
+            const sorted = Object.entries(empHours).sort((a,b) => b[1] - a[1]);
+            const total = sorted.reduce((sum, [,h]) => sum + h, 0);
+            
+            document.getElementById('weeklyReport').innerHTML = `
+                <div style="background: white; border-radius: 8px; overflow: hidden;">
+                    ${sorted.map(([name, hours]) => {
+                        const h = Math.floor(hours);
+                        const m = Math.round((hours - h) * 60);
+                        const timeStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
+                        
+                        return `
+                            <div style="display: flex; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #e0e0e0;">
+                                <strong>${name}</strong>
+                                <span style="font-family: 'Space Mono', monospace; font-weight: 700; color: var(--secondary);">${timeStr}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                    <div style="padding: 15px 20px; background: #f8f9fa; text-align: right;">
+                        <strong>Total: </strong>
+                        <span style="font-family: 'Space Mono', monospace; font-weight: 700; color: var(--primary);">
+                            ${(() => {
+                                const h = Math.floor(total);
+                                const m = Math.round((total - h) * 60);
+                                return m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
+                            })()}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
+        
         function logout() {
-            user = null;
+            currentUser = null;
             document.getElementById('loginView').style.display = 'block';
-            document.getElementById('appView').style.display = 'none';
+            document.getElementById('employeeView').style.display = 'none';
+            document.getElementById('adminView').style.display = 'none';
             document.getElementById('code').value = '';
             document.getElementById('pin').value = '';
         }
