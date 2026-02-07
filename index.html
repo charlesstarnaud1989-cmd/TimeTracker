@@ -3,1124 +3,306 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivi du Temps - Employés</title>
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <title>Suivi du Temps</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #1a5f7a;
-            --secondary: #57a773;
-            --accent: #f39c12;
-            --bg: #f8f9fa;
-            --card-bg: #ffffff;
-            --text: #2c3e50;
-            --border: #e0e4e8;
-            --shadow: rgba(0, 0, 0, 0.08);
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Archivo', sans-serif;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            color: var(--text);
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
-
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        header {
-            background: var(--primary);
-            color: white;
-            padding: 30px;
-            border-radius: 16px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 20px var(--shadow);
-        }
-
-        h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-
-        .subtitle {
-            opacity: 0.9;
-            font-size: 0.95rem;
-        }
-
+        .container { max-width: 500px; margin: 50px auto; }
         .card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 12px var(--shadow);
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: var(--text);
-            font-size: 0.9rem;
-        }
-
-        input[type="text"],
-        input[type="password"],
-        input[type="date"],
-        select {
+        h1 { color: #333; margin-bottom: 10px; font-size: 1.8rem; }
+        .subtitle { color: #666; margin-bottom: 30px; }
+        input, select, button {
             width: 100%;
-            padding: 12px 16px;
-            border: 2px solid var(--border);
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #e0e0e0;
             border-radius: 8px;
-            font-size: 1rem;
-            font-family: 'Archivo', sans-serif;
-            transition: all 0.2s;
+            font-size: 16px;
         }
-
-        input:focus,
-        select:focus {
+        input:focus, select:focus {
             outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(26, 95, 122, 0.1);
+            border-color: #667eea;
         }
-
-        .time-inputs {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        .total-hours-display {
-            background: linear-gradient(135deg, var(--secondary) 0%, #4a8f64 100%);
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            margin-top: 15px;
-            font-size: 1.1rem;
-        }
-
         button {
-            background: var(--secondary);
+            background: #667eea;
             color: white;
             border: none;
-            padding: 14px 28px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
-            width: 100%;
-            font-family: 'Archivo', sans-serif;
+            font-weight: bold;
+            margin-top: 20px;
         }
-
-        button:hover {
-            background: #4a8f64;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(87, 167, 115, 0.3);
-        }
-
-        button:active {
-            transform: translateY(0);
-        }
-
-        .slider-bar {
-            position: relative;
-            height: 80px;
-            background: #e0e0e0;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-bottom: 30px;
-            display: flex;
-        }
-
-        .task-section {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            padding: 10px 5px;
-            position: relative;
-            border-right: 2px solid white;
-            flex-shrink: 0;
-        }
-
-        .task-section:last-child {
-            border-right: none;
-        }
-
-        .task-name {
-            font-size: 0.9rem;
-            margin-bottom: 5px;
-            text-align: center;
-        }
-
-        .task-hours {
-            font-size: 1rem;
-            font-family: 'Space Mono', monospace;
-            font-weight: 700;
-        }
-
-        .resize-handle {
-            position: absolute;
-            right: -8px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 16px;
-            height: 40px;
-            background: white;
-            border-radius: 8px;
-            cursor: ew-resize;
-            z-index: 10;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid #ddd;
-        }
-
-        .resize-handle:hover {
-            background: #f5f5f5;
-        }
-
-        .resize-handle::after {
-            content: '⋮';
-            color: #666;
-            font-size: 1.2rem;
-        }
-
-        .breakdown-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 15px;
-            background: white;
-            border-radius: 6px;
-            margin-bottom: 8px;
-            border-left: 4px solid;
-        }
-
-        .breakdown-task {
-            font-weight: 600;
-            color: var(--text);
-        }
-
-        .breakdown-hours {
-            font-family: 'Space Mono', monospace;
-            font-weight: 700;
-            font-size: 1.05rem;
-        }
-
-        .entry {
-            background: white;
-            border-left: 4px solid var(--secondary);
-            padding: 18px;
-            margin-bottom: 12px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px var(--shadow);
-            display: grid;
-            grid-template-columns: 1fr auto auto;
-            gap: 20px;
-            align-items: center;
-            transition: transform 0.2s;
-        }
-
-        .entry:hover {
-            transform: translateX(4px);
-        }
-
-        .entry-info {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .entry-employee {
-            font-weight: 700;
-            font-size: 1.1rem;
-            color: var(--primary);
-        }
-
-        .entry-task {
-            color: #666;
-            font-size: 0.95rem;
-        }
-
-        .entry-date {
-            color: #999;
-            font-size: 0.85rem;
-            font-family: 'Space Mono', monospace;
-        }
-
-        .entry-hours {
-            background: var(--primary);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-family: 'Space Mono', monospace;
-            font-size: 1.1rem;
-        }
-
-        .delete-btn {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: 600;
-            transition: all 0.2s;
-            width: auto;
-        }
-
-        .delete-btn:hover {
-            background: #c0392b;
-            transform: scale(1.05);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-            font-style: italic;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .stat-card {
-            background: linear-gradient(135deg, var(--primary) 0%, #2980b9 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            font-family: 'Space Mono', monospace;
-        }
-
-        .stat-label {
-            font-size: 0.9rem;
-            opacity: 0.9;
-            margin-top: 5px;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-        }
-
+        button:hover { background: #5568d3; }
         .error {
-            background: #ffe5e5;
-            color: #c0392b;
+            background: #fee;
+            color: #c33;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        label { display: block; margin-top: 15px; font-weight: bold; color: #555; }
+        #appView { display: none; }
+        .entry {
+            background: #f9f9f9;
             padding: 15px;
+            margin: 10px 0;
             border-radius: 8px;
-            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
         }
-
-        @media (max-width: 768px) {
-            .time-inputs {
-                grid-template-columns: 1fr;
-            }
-            
-            .entry {
-                grid-template-columns: 1fr;
-            }
-        }
+        .logout { background: #e74c3c; margin-bottom: 20px; }
+        .logout:hover { background: #c0392b; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- ÉCRAN DE CONNEXION -->
-        <div id="loginView">
-            <header>
-                <h1>⏱️ Suivi du Temps de Travail</h1>
-                <p class="subtitle">Connexion employé</p>
-            </header>
-
-            <div class="card">
-                <h2 style="margin-bottom: 20px; color: var(--primary);">Connexion</h2>
-                <div id="loginError" class="error" style="display: none;"></div>
-                
-                <form id="loginForm">
-                    <div class="form-group">
-                        <label for="employeeCode">Code employé *</label>
-                        <input type="text" id="employeeCode" required placeholder="Ex: EMP001" autocomplete="username">
-                    </div>
-                    <div class="form-group">
-                        <label for="employeePin">Code PIN *</label>
-                        <input type="password" id="employeePin" required placeholder="4 chiffres" maxlength="4" autocomplete="current-password">
-                    </div>
-                    <button type="submit">🔐 Se connecter</button>
-                </form>
-            </div>
+        <!-- LOGIN -->
+        <div id="loginView" class="card">
+            <h1>⏱️ Suivi du Temps</h1>
+            <p class="subtitle">Connexion</p>
+            <div id="loginError" class="error"></div>
+            <form id="loginForm">
+                <label>Code employé</label>
+                <input type="text" id="code" required placeholder="EMP001" autocomplete="off">
+                <label>PIN</label>
+                <input type="password" id="pin" required placeholder="1234" maxlength="4">
+                <button type="submit">Se connecter</button>
+            </form>
         </div>
 
-        <!-- INTERFACE EMPLOYÉ -->
-        <div id="employeeView" style="display: none;">
-            <header>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h1>⏱️ Suivi du Temps de Travail</h1>
-                        <p class="subtitle" id="employeeName"></p>
-                    </div>
-                    <button onclick="logout()" style="width: auto; padding: 10px 20px; background: rgba(255,255,255,0.2); font-size: 0.9rem;">
-                        🚪 Déconnexion
-                    </button>
-                </div>
-            </header>
-
+        <!-- APP -->
+        <div id="appView">
             <div class="card">
-                <h2 style="margin-bottom: 20px; color: var(--primary);">Nouvelle Journée</h2>
+                <button class="logout" onclick="logout()">Déconnexion</button>
+                <h1 id="userName"></h1>
+                <p class="subtitle">Enregistrer votre temps</p>
                 
                 <form id="timeForm">
-                    <div class="form-group">
-                        <label for="date">Date *</label>
-                        <input type="date" id="date" required>
-                    </div>
-
-                    <div class="time-inputs">
-                        <div class="form-group">
-                            <label for="startTime">Heure d'arrivée *</label>
-                            <select id="startTime" required></select>
-                        </div>
-                        <div class="form-group">
-                            <label for="endTime">Heure de départ *</label>
-                            <select id="endTime" required></select>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="lunchHours">Temps de dîner (à soustraire)</label>
-                        <select id="lunchHours">
-                            <option value="0">Aucun</option>
-                            <option value="0.25">15 minutes</option>
-                            <option value="0.5">30 minutes</option>
-                            <option value="0.75">45 minutes</option>
-                            <option value="1" selected>1 heure</option>
-                            <option value="1.25">1h15</option>
-                            <option value="1.5">1h30</option>
-                            <option value="1.75">1h45</option>
-                            <option value="2">2 heures</option>
-                        </select>
-                    </div>
-
-                    <div class="total-hours-display" id="totalHoursDisplay" style="display: none;">
-                        <strong>Durée totale :</strong> <span id="totalHoursText">0h00</span>
-                    </div>
-
-                    <div class="form-group" style="margin-top: 20px;">
-                        <label>Sélectionnez les tâches effectuées</label>
-                        <div id="taskCheckboxes" style="display: grid; gap: 10px; margin-top: 10px;"></div>
-                    </div>
-
-                    <div id="taskAllocation" style="margin-top: 25px; display: none;">
-                        <h3 style="color: var(--primary); margin-bottom: 15px; font-size: 1.1rem;">Répartition du temps</h3>
-                        <p style="color: #666; font-size: 0.9rem; margin-bottom: 20px;">
-                            Glissez les poignées pour ajuster la répartition
-                        </p>
-                        
-                        <div class="slider-bar" id="sliderBar"></div>
-                        
-                        <div id="taskBreakdown"></div>
-                    </div>
-
-                    <button type="submit" id="submitBtn" style="margin-top: 25px;">➕ Enregistrer la journée</button>
+                    <label>Date</label>
+                    <input type="date" id="date" required>
+                    
+                    <label>Arrivée</label>
+                    <select id="start" required></select>
+                    
+                    <label>Départ</label>
+                    <select id="end" required></select>
+                    
+                    <label>Dîner</label>
+                    <select id="lunch">
+                        <option value="0">Aucun</option>
+                        <option value="0.5">30 min</option>
+                        <option value="1" selected>1 heure</option>
+                        <option value="1.5">1h30</option>
+                    </select>
+                    
+                    <label>Tâche</label>
+                    <select id="task" required>
+                        <option value="">Sélectionnez...</option>
+                    </select>
+                    
+                    <label>Heures</label>
+                    <input type="number" id="hours" step="0.25" min="0" required placeholder="8">
+                    
+                    <button type="submit">Enregistrer</button>
                 </form>
-            </div>
-
-            <div class="card">
-                <h2 style="color: var(--primary); margin-bottom: 20px;">📋 Mes entrées récentes</h2>
-                <div id="entriesList" class="loading">Chargement...</div>
-            </div>
-        </div>
-
-        <!-- INTERFACE ADMIN -->
-        <div id="adminView" style="display: none;">
-            <header>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h1>⚙️ Administration</h1>
-                        <p class="subtitle">Gestion du système</p>
-                    </div>
-                    <button onclick="logout()" style="width: auto; padding: 10px 20px; background: rgba(255,255,255,0.2); font-size: 0.9rem;">
-                        🚪 Déconnexion
-                    </button>
-                </div>
-            </header>
-
-            <div class="card">
-                <h3 style="color: var(--primary); margin-bottom: 15px;">👥 Gestion des employés</h3>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <input type="text" id="newEmployeeName" placeholder="Nom complet" style="flex: 1;">
-                    <input type="text" id="newEmployeeCode" placeholder="Code (ex: EMP001)" style="flex: 1;">
-                    <input type="password" id="newEmployeePin" placeholder="PIN (4 chiffres)" maxlength="4" style="flex: 1;">
-                    <button onclick="addEmployee()" style="width: auto; padding: 10px 20px;">➕ Ajouter</button>
-                </div>
-                <div id="employeeList" class="loading">Chargement...</div>
-            </div>
-
-            <div class="card">
-                <h3 style="color: var(--primary); margin-bottom: 15px;">📋 Gestion des tâches</h3>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <input type="text" id="newTaskName" placeholder="Nom de la tâche" style="flex: 1;">
-                    <button onclick="addTask()" style="width: auto; padding: 10px 20px;">➕ Ajouter</button>
-                </div>
-                <div id="taskList" class="loading">Chargement...</div>
-            </div>
-
-            <div class="card">
-                <h3 style="color: var(--primary); margin-bottom: 15px;">📊 Rapport hebdomadaire</h3>
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 0.9rem; color: #666;">Semaine du :</label>
-                    <input type="date" id="weekStart" onchange="updateWeeklyReport()" style="margin-top: 5px;">
-                </div>
-                <div id="weeklyReport" class="loading">Chargement...</div>
+                
+                <div id="success" class="success" style="display:none;">✅ Enregistré !</div>
+                
+                <h3 style="margin-top: 30px;">Mes dernières entrées</h3>
+                <div id="entries"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Attendre que tout soit chargé
-        window.addEventListener('DOMContentLoaded', function() {
-            // Vérifier que Supabase est chargé
-            if (typeof window.supabase === 'undefined') {
-                document.body.innerHTML = '<div style="text-align:center;padding:50px;"><h1>Erreur de chargement</h1><p>La bibliothèque Supabase n\'a pas pu se charger. Vérifiez votre connexion internet et rechargez la page.</p></div>';
-                return;
-            }
-
-            // ============================================
-            // CONFIGURATION SUPABASE
-            // ============================================
-            // IMPORTANT: Remplacez ces valeurs par vos propres clés Supabase
-            const SUPABASE_URL = 'https://negsevkdyscwlztbjvuy.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lZ3NldmtkeXNjd2x6dGJqdnV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3ODY5MzIsImV4cCI6MjA4NTM2MjkzMn0._lZ4QXV-5m3xKd8ut3jQchIl4R5P7yrjuYHlRNvHAFQ';
+        // ============== CONFIGURATION ==============
+        const SUPABASE_URL = 'https://negsevkdyscwlztbjvuy.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lZ3NldmtkeXNjd2x6dGJqdnV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3ODY5MzIsImV4cCI6MjA4NTM2MjkzMn0._lZ4QXV-5m3xKd8ut3jQchIl4R5P7yrjuYHlRNvHAFQ';
         
-            
-            // Initialiser Supabase
-            const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        // Variables globales
-        const COLORS = ['#1a5f7a', '#57a773', '#f39c12', '#e74c3c', '#9b59b6', '#3498db', '#1abc9c'];
-        let currentUser = null;
-        let selectedTasks = [];
-        let totalHours = 0;
-        let taskHours = {};
-        let isDragging = false;
-        let dragHandleIndex = -1;
-        let availableTasks = [];
-
+        let sb, user;
+        
         // Initialisation
-        init();
-
-        async function init() {
-            // Vérifier si déjà connecté
-            const session = await supabaseClient.auth.getSession();
-            if (session.data.session) {
-                await loadUserData(session.data.session.user);
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log('✅ Supabase initialisé');
+            } catch (e) {
+                alert('Erreur Supabase: ' + e.message);
             }
-
-            // Générer les options d'heures
-            generateTimeOptions();
             
-            // Initialiser la date
             document.getElementById('date').valueAsDate = new Date();
+            generateTimes();
+            loadTasks();
             
-            // Event listeners
-            document.getElementById('loginForm').addEventListener('submit', handleLogin);
-            document.getElementById('timeForm').addEventListener('submit', handleTimeSubmit);
-            document.getElementById('startTime').addEventListener('change', calculateTotalHours);
-            document.getElementById('endTime').addEventListener('change', calculateTotalHours);
-            document.getElementById('lunchHours').addEventListener('change', calculateTotalHours);
-        }
-
-        function generateTimeOptions() {
-            const times = [];
+            document.getElementById('loginForm').onsubmit = login;
+            document.getElementById('timeForm').onsubmit = saveTime;
+            document.getElementById('start').onchange = calcHours;
+            document.getElementById('end').onchange = calcHours;
+            document.getElementById('lunch').onchange = calcHours;
+        });
+        
+        function generateTimes() {
+            const opts = [];
             for (let h = 5; h <= 20; h++) {
                 for (let m = 0; m < 60; m += 15) {
-                    const timeStr = `${h}:${m.toString().padStart(2, '0')}`;
-                    const displayStr = `${h}h${m.toString().padStart(2, '0')}`;
-                    times.push({ value: timeStr, display: displayStr });
+                    const val = `${h}:${m.toString().padStart(2,'0')}`;
+                    const txt = `${h}h${m.toString().padStart(2,'0')}`;
+                    opts.push(`<option value="${val}">${txt}</option>`);
                 }
             }
-
-            const startSelect = document.getElementById('startTime');
-            const endSelect = document.getElementById('endTime');
-
-            times.forEach(time => {
-                const opt1 = new Option(time.display, time.value);
-                const opt2 = new Option(time.display, time.value);
-                if (time.value === '7:30') opt1.selected = true;
-                if (time.value === '16:30') opt2.selected = true;
-                startSelect.add(opt1);
-                endSelect.add(opt2);
-            });
+            document.getElementById('start').innerHTML = opts.join('');
+            document.getElementById('end').innerHTML = opts.join('');
+            document.getElementById('start').value = '7:30';
+            document.getElementById('end').value = '16:30';
         }
-
-        // ============================================
-        // AUTHENTIFICATION
-        // ============================================
-        async function handleLogin(e) {
+        
+        async function loadTasks() {
+            const {data} = await sb.from('tasks').select('name').order('name');
+            if (data) {
+                document.getElementById('task').innerHTML = 
+                    '<option value="">Sélectionnez...</option>' +
+                    data.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+            }
+        }
+        
+        function calcHours() {
+            const start = document.getElementById('start').value.split(':');
+            const end = document.getElementById('end').value.split(':');
+            const lunch = parseFloat(document.getElementById('lunch').value);
+            
+            let h = parseInt(end[0]) - parseInt(start[0]);
+            let m = parseInt(end[1]) - parseInt(start[1]);
+            
+            if (m < 0) { h--; m += 60; }
+            if (h < 0) h += 24;
+            
+            const total = Math.max(0, h + m/60 - lunch);
+            document.getElementById('hours').value = total.toFixed(2);
+        }
+        
+        async function login(e) {
             e.preventDefault();
-            const code = document.getElementById('employeeCode').value.trim();
-            const pin = document.getElementById('employeePin').value.trim();
-
-            // Vérifier si c'est admin
-            if (code.toUpperCase() === 'ADMIN' && pin === '0000') {
-                await loginAsAdmin();
+            const code = document.getElementById('code').value.trim().toUpperCase();
+            const pin = document.getElementById('pin').value.trim();
+            
+            console.log('Login:', code, pin);
+            
+            if (code === 'ADMIN' && pin === '0000') {
+                alert('Mode admin pas encore implémenté');
                 return;
             }
-
-            // Connexion employé
+            
             try {
-                const { data: employee, error } = await supabase
+                const {data, error} = await sb
                     .from('employees')
-                    .select('*')
-                    .eq('code', code.toUpperCase())
+                    .select()
+                    .eq('code', code)
                     .eq('pin', pin)
                     .single();
-
-                if (error || !employee) {
-                    showError('Code ou PIN incorrect');
+                
+                console.log('Résultat:', data, error);
+                
+                if (error || !data) {
+                    document.getElementById('loginError').textContent = 'Code ou PIN incorrect';
+                    document.getElementById('loginError').style.display = 'block';
                     return;
                 }
-
-                currentUser = employee;
-                showEmployeeView();
-                loadEmployeeData();
-
+                
+                user = data;
+                showApp();
             } catch (err) {
-                showError('Erreur de connexion');
+                console.error(err);
+                document.getElementById('loginError').textContent = 'Erreur: ' + err.message;
+                document.getElementById('loginError').style.display = 'block';
             }
         }
-
-        async function loginAsAdmin() {
-            currentUser = { id: 'admin', name: 'Administrateur', is_admin: true };
-            showAdminView();
-            loadAdminData();
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('loginError');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-            setTimeout(() => errorDiv.style.display = 'none', 3000);
-        }
-
-        function showEmployeeView() {
+        
+        function showApp() {
             document.getElementById('loginView').style.display = 'none';
-            document.getElementById('employeeView').style.display = 'block';
-            document.getElementById('adminView').style.display = 'none';
-            document.getElementById('employeeName').textContent = currentUser.name;
+            document.getElementById('appView').style.display = 'block';
+            document.getElementById('userName').textContent = user.name;
+            calcHours();
+            loadEntries();
         }
-
-        function showAdminView() {
-            document.getElementById('loginView').style.display = 'none';
-            document.getElementById('employeeView').style.display = 'none';
-            document.getElementById('adminView').style.display = 'block';
-        }
-
-        function logout() {
-            currentUser = null;
-            document.getElementById('loginView').style.display = 'block';
-            document.getElementById('employeeView').style.display = 'none';
-            document.getElementById('adminView').style.display = 'none';
-            document.getElementById('employeeCode').value = '';
-            document.getElementById('employeePin').value = '';
-        }
-
-        // ============================================
-        // INTERFACE EMPLOYÉ
-        // ============================================
-        async function loadEmployeeData() {
-            // Charger les tâches disponibles
-            const { data: tasks } = await supabase
-                .from('tasks')
-                .select('*')
-                .order('name');
-
-            availableTasks = tasks || [];
-            updateTaskCheckboxes();
-
-            // Charger les entrées récentes
-            loadRecentEntries();
-            calculateTotalHours();
-        }
-
-        function updateTaskCheckboxes() {
-            const container = document.getElementById('taskCheckboxes');
-            container.innerHTML = availableTasks.map(task => `
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" value="${task.name}" onchange="updateTaskList()" style="margin-right: 10px; width: 18px; height: 18px;">
-                    <span>${task.name}</span>
-                </label>
-            `).join('');
-        }
-
-        async function loadRecentEntries() {
-            const { data: entries } = await supabase
-                .from('time_entries')
-                .select('*')
-                .eq('employee_id', currentUser.id)
-                .order('date', { ascending: false })
-                .limit(10);
-
-            displayEntries(entries || []);
-        }
-
-        function displayEntries(entries) {
-            const list = document.getElementById('entriesList');
-            
-            if (entries.length === 0) {
-                list.innerHTML = '<div class="empty-state">Aucune entrée enregistrée.</div>';
-                return;
-            }
-
-            list.innerHTML = entries.map(entry => {
-                const h = Math.floor(entry.hours);
-                const m = Math.round((entry.hours - h) * 60);
-                const timeStr = m > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`;
-                
-                return `
-                    <div class="entry">
-                        <div class="entry-info">
-                            <div class="entry-task">${entry.task}</div>
-                            <div class="entry-date">${new Date(entry.date).toLocaleDateString('fr-FR', { 
-                                weekday: 'long', 
-                                year: 'numeric', 
-                                month: 'long', 
-                                day: 'numeric' 
-                            })}</div>
-                        </div>
-                        <div class="entry-hours">${timeStr}</div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function calculateTotalHours() {
-            const startTime = document.getElementById('startTime').value;
-            const endTime = document.getElementById('endTime').value;
-            const lunchHours = parseFloat(document.getElementById('lunchHours').value) || 0;
-
-            if (startTime && endTime) {
-                const [startH, startM] = startTime.split(':').map(Number);
-                const [endH, endM] = endTime.split(':').map(Number);
-
-                let hours = endH - startH;
-                let minutes = endM - startM;
-
-                if (minutes < 0) {
-                    hours--;
-                    minutes += 60;
-                }
-
-                if (hours < 0) {
-                    hours += 24;
-                }
-
-                totalHours = Math.max(0, hours + (minutes / 60) - lunchHours);
-
-                const h = Math.floor(totalHours);
-                const m = Math.round((totalHours - h) * 60);
-                
-                document.getElementById('totalHoursText').textContent = 
-                    m > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`;
-                document.getElementById('totalHoursDisplay').style.display = 'block';
-
-                if (selectedTasks.length > 0) {
-                    initTaskHours();
-                    renderSlider();
-                }
-            }
-        }
-
-        function updateTaskList() {
-            const checkboxes = document.querySelectorAll('#taskCheckboxes input[type="checkbox"]');
-            selectedTasks = Array.from(checkboxes)
-                .filter(cb => cb.checked)
-                .map(cb => cb.value);
-
-            if (selectedTasks.length > 0 && totalHours > 0) {
-                document.getElementById('taskAllocation').style.display = 'block';
-                initTaskHours();
-                renderSlider();
-            } else {
-                document.getElementById('taskAllocation').style.display = 'none';
-            }
-        }
-
-        function initTaskHours() {
-            const equalShare = totalHours / selectedTasks.length;
-            taskHours = {};
-            selectedTasks.forEach(task => {
-                taskHours[task] = equalShare;
-            });
-        }
-
-        function renderSlider() {
-            const sliderBar = document.getElementById('sliderBar');
-            const taskBreakdown = document.getElementById('taskBreakdown');
-            
-            sliderBar.innerHTML = '';
-            
-            selectedTasks.forEach((task, index) => {
-                const hours = taskHours[task];
-                const percentage = (hours / totalHours) * 100;
-                
-                const section = document.createElement('div');
-                section.className = 'task-section';
-                section.style.width = percentage + '%';
-                section.style.backgroundColor = COLORS[index % COLORS.length];
-                
-                const h = Math.floor(hours);
-                const m = Math.round((hours - h) * 60);
-                const hoursText = m > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`;
-                
-                section.innerHTML = `
-                    <div class="task-name">${task}</div>
-                    <div class="task-hours">${hoursText}</div>
-                `;
-                
-                if (index < selectedTasks.length - 1) {
-                    const handle = document.createElement('div');
-                    handle.className = 'resize-handle';
-                    handle.dataset.index = index;
-                    section.appendChild(handle);
-                    
-                    handle.addEventListener('mousedown', startDrag);
-                }
-                
-                sliderBar.appendChild(section);
-            });
-            
-            taskBreakdown.innerHTML = selectedTasks.map((task, index) => {
-                const hours = taskHours[task];
-                const h = Math.floor(hours);
-                const m = Math.round((hours - h) * 60);
-                const timeStr = m > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`;
-                const percentage = ((hours / totalHours) * 100).toFixed(1);
-                
-                return `
-                    <div class="breakdown-item" style="border-color: ${COLORS[index % COLORS.length]}">
-                        <span class="breakdown-task">${task} <small style="opacity: 0.6;">(${percentage}%)</small></span>
-                        <span class="breakdown-hours" style="color: ${COLORS[index % COLORS.length]}">${timeStr}</span>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function startDrag(e) {
+        
+        async function saveTime(e) {
             e.preventDefault();
-            isDragging = true;
-            dragHandleIndex = parseInt(e.target.dataset.index);
             
-            document.addEventListener('mousemove', onDrag);
-            document.addEventListener('mouseup', stopDrag);
-        }
-
-        function onDrag(e) {
-            if (!isDragging) return;
+            const entry = {
+                employee_id: user.id,
+                employee_name: user.name,
+                date: document.getElementById('date').value,
+                task: document.getElementById('task').value,
+                hours: parseFloat(document.getElementById('hours').value),
+                start_time: document.getElementById('start').value,
+                end_time: document.getElementById('end').value
+            };
             
-            const sliderBar = document.getElementById('sliderBar');
-            const rect = sliderBar.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mousePercent = (mouseX / rect.width) * 100;
+            const {error} = await sb.from('time_entries').insert([entry]);
             
-            let cumulativePercent = 0;
-            for (let i = 0; i <= dragHandleIndex; i++) {
-                cumulativePercent += (taskHours[selectedTasks[i]] / totalHours) * 100;
-            }
-            
-            const delta = mousePercent - cumulativePercent;
-            const deltaHours = (delta / 100) * totalHours;
-            const roundedDelta = Math.round(deltaHours * 4) / 4;
-            
-            const leftTask = selectedTasks[dragHandleIndex];
-            const rightTask = selectedTasks[dragHandleIndex + 1];
-            
-            const newLeftHours = Math.max(0.25, Math.min(
-                taskHours[leftTask] + taskHours[rightTask] - 0.25,
-                taskHours[leftTask] + roundedDelta
-            ));
-            
-            const newRightHours = taskHours[leftTask] + taskHours[rightTask] - newLeftHours;
-            
-            if (newRightHours >= 0.25) {
-                taskHours[leftTask] = newLeftHours;
-                taskHours[rightTask] = newRightHours;
-                renderSlider();
-            }
-        }
-
-        function stopDrag() {
-            isDragging = false;
-            dragHandleIndex = -1;
-            document.removeEventListener('mousemove', onDrag);
-            document.removeEventListener('mouseup', stopDrag);
-        }
-
-        async function handleTimeSubmit(e) {
-            e.preventDefault();
-
-            if (selectedTasks.length === 0) {
-                alert('Veuillez sélectionner au moins une tâche');
-                return;
-            }
-
-            const date = document.getElementById('date').value;
-            const startTime = document.getElementById('startTime').value;
-            const endTime = document.getElementById('endTime').value;
-
-            const entries = selectedTasks.map(task => ({
-                employee_id: currentUser.id,
-                employee_name: currentUser.name,
-                task: task,
-                date: date,
-                hours: taskHours[task],
-                start_time: startTime,
-                end_time: endTime,
-                created_at: new Date().toISOString()
-            }));
-
-            const { error } = await supabase
-                .from('time_entries')
-                .insert(entries);
-
-            if (error) {
-                alert('Erreur lors de l\'enregistrement');
-                return;
-            }
-
-            // Réinitialiser
-            document.getElementById('startTime').value = '7:30';
-            document.getElementById('endTime').value = '16:30';
-            document.getElementById('lunchHours').value = '1';
-            document.getElementById('totalHoursDisplay').style.display = 'none';
-            document.getElementById('taskAllocation').style.display = 'none';
-            
-            document.querySelectorAll('#taskCheckboxes input[type="checkbox"]').forEach(cb => {
-                cb.checked = false;
-            });
-            
-            selectedTasks = [];
-            taskHours = {};
-            
-            calculateTotalHours();
-            loadRecentEntries();
-            
-            alert('Journée enregistrée avec succès !');
-        }
-
-        // ============================================
-        // INTERFACE ADMIN
-        // ============================================
-        async function loadAdminData() {
-            await loadEmployeesList();
-            await loadTasksList();
-            setCurrentWeek();
-            await updateWeeklyReport();
-        }
-
-        async function loadEmployeesList() {
-            const { data: employees } = await supabase
-                .from('employees')
-                .select('*')
-                .order('name');
-
-            const list = document.getElementById('employeeList');
-            if (!employees || employees.length === 0) {
-                list.innerHTML = '<p style="color: #999; font-style: italic;">Aucun employé</p>';
-                return;
-            }
-            
-            list.innerHTML = employees.map(emp => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8f9fa; border-radius: 6px; margin-bottom: 8px;">
-                    <div>
-                        <span style="font-weight: 600;">${emp.name}</span>
-                        <span style="margin-left: 15px; color: #666; font-family: 'Space Mono', monospace;">${emp.code}</span>
-                    </div>
-                    <button onclick="deleteEmployee('${emp.id}')" class="delete-btn" style="width: auto;">🗑️</button>
-                </div>
-            `).join('');
-        }
-
-        async function addEmployee() {
-            const name = document.getElementById('newEmployeeName').value.trim();
-            const code = document.getElementById('newEmployeeCode').value.trim().toUpperCase();
-            const pin = document.getElementById('newEmployeePin').value.trim();
-
-            if (!name || !code || !pin) {
-                alert('Tous les champs sont requis');
-                return;
-            }
-
-            if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-                alert('Le PIN doit être 4 chiffres');
-                return;
-            }
-
-            const { error } = await supabase
-                .from('employees')
-                .insert([{ name, code, pin }]);
-
-            if (error) {
-                alert('Erreur: ' + (error.message.includes('duplicate') ? 'Code déjà utilisé' : error.message));
-                return;
-            }
-
-            document.getElementById('newEmployeeName').value = '';
-            document.getElementById('newEmployeeCode').value = '';
-            document.getElementById('newEmployeePin').value = '';
-            
-            loadEmployeesList();
-        }
-
-        async function deleteEmployee(id) {
-            if (!confirm('Supprimer cet employé ?')) return;
-
-            await supabaseClient.from('employees').delete().eq('id', id);
-            loadEmployeesList();
-        }
-
-        async function loadTasksList() {
-            const { data: tasks } = await supabase
-                .from('tasks')
-                .select('*')
-                .order('name');
-
-            const list = document.getElementById('taskList');
-            if (!tasks || tasks.length === 0) {
-                list.innerHTML = '<p style="color: #999; font-style: italic;">Aucune tâche</p>';
-                return;
-            }
-            
-            list.innerHTML = tasks.map(task => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8f9fa; border-radius: 6px; margin-bottom: 8px;">
-                    <span style="font-weight: 600;">${task.name}</span>
-                    <button onclick="deleteTask('${task.id}')" class="delete-btn" style="width: auto;">🗑️</button>
-                </div>
-            `).join('');
-        }
-
-        async function addTask() {
-            const name = document.getElementById('newTaskName').value.trim();
-            if (!name) return;
-
-            const { error } = await supabase
-                .from('tasks')
-                .insert([{ name }]);
-
             if (error) {
                 alert('Erreur: ' + error.message);
                 return;
             }
-
-            document.getElementById('newTaskName').value = '';
-            loadTasksList();
-        }
-
-        async function deleteTask(id) {
-            if (!confirm('Supprimer cette tâche ?')) return;
-
-            await supabaseClient.from('tasks').delete().eq('id', id);
-            loadTasksList();
-        }
-
-        function setCurrentWeek() {
-            const today = new Date();
-            const monday = new Date(today);
-            monday.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
-            document.getElementById('weekStart').valueAsDate = monday;
-        }
-
-        async function updateWeeklyReport() {
-            const weekStartInput = document.getElementById('weekStart').value;
-            if (!weekStartInput) return;
-
-            const weekStart = new Date(weekStartInput);
-            const weekEnd = new Date(weekStart);
-            weekEnd.setDate(weekStart.getDate() + 6);
-
-            const { data: entries } = await supabase
-                .from('time_entries')
-                .select('*')
-                .gte('date', weekStart.toISOString().split('T')[0])
-                .lte('date', weekEnd.toISOString().split('T')[0]);
-
-            const employeeHours = {};
-            (entries || []).forEach(entry => {
-                if (!employeeHours[entry.employee_name]) {
-                    employeeHours[entry.employee_name] = 0;
-                }
-                employeeHours[entry.employee_name] += entry.hours;
-            });
-
-            const report = document.getElementById('weeklyReport');
             
-            if (Object.keys(employeeHours).length === 0) {
-                report.innerHTML = '<p style="color: #999; font-style: italic;">Aucune heure pour cette semaine</p>';
-                return;
-            }
-
-            const sortedEmployees = Object.entries(employeeHours).sort((a, b) => b[1] - a[1]);
-
-            report.innerHTML = `
-                <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-                    ${sortedEmployees.map(([employee, hours]) => {
-                        const h = Math.floor(hours);
-                        const m = Math.round((hours - h) * 60);
-                        const timeStr = m > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`;
-                        
-                        return `
-                            <div style="display: flex; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #e0e0e0;">
-                                <span style="font-weight: 600;">${employee}</span>
-                                <span style="font-family: 'Space Mono', monospace; font-weight: 700; font-size: 1.2rem; color: var(--secondary);">${timeStr}</span>
-                            </div>
-                        `;
-                    }).join('')}
-                    <div style="padding: 15px 20px; background: #f8f9fa; text-align: right;">
-                        <strong>Total: </strong>
-                        <span style="font-family: 'Space Mono', monospace; font-weight: 700; font-size: 1.2rem; color: var(--primary);">
-                            ${(() => {
-                                const total = Object.values(employeeHours).reduce((sum, h) => sum + h, 0);
-                                const h = Math.floor(total);
-                                const m = Math.round((total - h) * 60);
-                                return m > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`;
-                            })()}
-                        </span>
-                    </div>
-                </div>
-            `;
+            document.getElementById('success').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('success').style.display = 'none';
+            }, 3000);
+            
+            document.getElementById('timeForm').reset();
+            document.getElementById('date').valueAsDate = new Date();
+            document.getElementById('start').value = '7:30';
+            document.getElementById('end').value = '16:30';
+            calcHours();
+            loadEntries();
         }
         
-        }); // Fin du DOMContentLoaded
+        async function loadEntries() {
+            const {data} = await sb
+                .from('time_entries')
+                .select()
+                .eq('employee_id', user.id)
+                .order('date', {ascending: false})
+                .limit(5);
+            
+            if (!data || data.length === 0) {
+                document.getElementById('entries').innerHTML = '<p style="color:#999;">Aucune entrée</p>';
+                return;
+            }
+            
+            document.getElementById('entries').innerHTML = data.map(e => `
+                <div class="entry">
+                    <strong>${e.task}</strong><br>
+                    ${new Date(e.date).toLocaleDateString('fr-FR')} - ${e.hours}h
+                </div>
+            `).join('');
+        }
+        
+        function logout() {
+            user = null;
+            document.getElementById('loginView').style.display = 'block';
+            document.getElementById('appView').style.display = 'none';
+            document.getElementById('code').value = '';
+            document.getElementById('pin').value = '';
+        }
     </script>
 </body>
 </html>
