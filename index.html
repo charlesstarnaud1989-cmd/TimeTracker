@@ -281,7 +281,7 @@
             </div>
 
             <div class="card">
-                <h2 style="color: var(--primary); margin-bottom: 20px;">📅 Mes 7 derniers jours</h2>
+                <h2 style="color: var(--primary); margin-bottom: 20px;">📅 Aujourd'hui et les 6 derniers jours</h2>
                 <div id="last7Days"></div>
             </div>
         </div>
@@ -926,9 +926,14 @@
                 .lte('date', weekEnd.toISOString().split('T')[0]);
             
             const empHours = {};
+            const empData = {}; // Stocker les données complètes
             (data || []).forEach(e => {
-                if (!empHours[e.employee_name]) empHours[e.employee_name] = 0;
+                if (!empHours[e.employee_name]) {
+                    empHours[e.employee_name] = 0;
+                    empData[e.employee_name] = [];
+                }
                 empHours[e.employee_name] += e.hours;
+                empData[e.employee_name].push(e);
             });
             
             if (Object.keys(empHours).length === 0) {
@@ -947,9 +952,12 @@
                         const timeStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
                         
                         return `
-                            <div style="display: flex; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #e0e0e0;">
-                                <strong>${name}</strong>
-                                <span style="font-family: 'Space Mono', monospace; font-weight: 700; color: var(--secondary);">${timeStr}</span>
+                            <div style="border-bottom: 1px solid #e0e0e0;">
+                                <div onclick="toggleEmployeeDetails('${name}')" style="display: flex; justify-content: space-between; padding: 15px 20px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+                                    <strong>▶ ${name}</strong>
+                                    <span style="font-family: 'Space Mono', monospace; font-weight: 700; color: var(--secondary);">${timeStr}</span>
+                                </div>
+                                <div id="details-${name.replace(/\s/g, '-')}" style="display: none; padding: 15px 20px; background: #f9f9f9;"></div>
                             </div>
                         `;
                     }).join('')}
@@ -965,6 +973,58 @@
                     </div>
                 </div>
             `;
+            
+            // Stocker les données pour l'affichage des détails
+            window.empDetailsData = empData;
+        }
+        
+        function toggleEmployeeDetails(empName) {
+            const detailsId = 'details-' + empName.replace(/\s/g, '-');
+            const detailsDiv = document.getElementById(detailsId);
+            
+            if (detailsDiv.style.display === 'none') {
+                // Grouper par date
+                const entries = window.empDetailsData[empName];
+                const byDate = {};
+                entries.forEach(e => {
+                    if (!byDate[e.date]) byDate[e.date] = [];
+                    byDate[e.date].push(e);
+                });
+                
+                const sortedDates = Object.keys(byDate).sort().reverse();
+                
+                detailsDiv.innerHTML = sortedDates.map(date => {
+                    const dayEntries = byDate[date];
+                    const dayTotal = dayEntries.reduce((sum, e) => sum + e.hours, 0);
+                    const h = Math.floor(dayTotal);
+                    const m = Math.round((dayTotal - h) * 60);
+                    const totalStr = m > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${h}h`;
+                    
+                    return `
+                        <div style="margin-bottom: 15px; padding: 10px; background: white; border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <strong>${new Date(date).toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'})}</strong>
+                                <strong style="color: var(--secondary);">${totalStr}</strong>
+                            </div>
+                            ${dayEntries.map(e => {
+                                const eh = Math.floor(e.hours);
+                                const em = Math.round((e.hours - eh) * 60);
+                                const eStr = em > 0 ? `${eh}h${em.toString().padStart(2,'0')}` : `${eh}h`;
+                                return `
+                                    <div style="display: flex; justify-content: space-between; padding: 5px 10px; font-size: 0.9rem;">
+                                        <span style="color: #666;">• ${e.task}</span>
+                                        <span style="font-family: 'Space Mono', monospace;">${eStr}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }).join('');
+                
+                detailsDiv.style.display = 'block';
+            } else {
+                detailsDiv.style.display = 'none';
+            }
         }
         
         function logout() {
@@ -1044,14 +1104,10 @@
             document.getElementById('startTime').value = copyData[0].start_time || '7:30';
             document.getElementById('endTime').value = copyData[0].end_time || '16:30';
             
-            // Sélectionner les tâches dans le select multiple
+            // Sélectionner les tâches
             selectedTasks = copyData.map(e => e.task);
-            const select = document.getElementById('taskSelect');
-            Array.from(select.options).forEach(opt => {
-                opt.selected = selectedTasks.includes(opt.value);
-            });
-            
             renderSelectedTasks();
+            updateTaskListHighlight();
             calculateTotalHours();
             
             // Initialiser les heures des tâches
