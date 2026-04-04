@@ -236,8 +236,11 @@
                         </div>
                     </div>
 
-                    <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 0.9rem; color: #1565c0;">
-                        ℹ️ <strong>Pause dîner :</strong> 12h00 - 13h00 (automatique)
+                    <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 0.9rem; color: #1565c0; display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="lunchBreak" checked onchange="calculateTotalHours()" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="lunchBreak" style="cursor: pointer; margin: 0;">
+                            ℹ️ <strong>Pause dîner :</strong> 12h00 - 13h00 (automatique)
+                        </label>
                     </div>
 
                     <div style="background: linear-gradient(135deg, var(--secondary) 0%, #4a8f64 100%); color: white; padding: 15px; border-radius: 8px; text-align: center; margin-top: 15px;" id="totalDisplay">
@@ -382,8 +385,8 @@
 
     <script>
         // ============== CONFIGURATION ==============
-        const SUPABASE_URL = 'https://negsevkdyscwlztbjvuy.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lZ3NldmtkeXNjd2x6dGJqdnV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3ODY5MzIsImV4cCI6MjA4NTM2MjkzMn0._lZ4QXV-5m3xKd8ut3jQchIl4R5P7yrjuYHlRNvHAFQ';
+        const SUPABASE_URL = 'https://negsevkdyscwlztbjvuy.supabase.co';;
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lZ3NldmtkeXNjd2x6dGJqdnV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3ODY5MzIsImV4cCI6MjA4NTM2MjkzMn0._lZ4QXV-5m3xKd8ut3jQchIl4R5P7yrjuYHlRNvHAFQ';;
         
         const COLORS = ['#1a5f7a', '#57a773', '#f39c12', '#e74c3c', '#9b59b6', '#3498db', '#1abc9c'];
         
@@ -545,17 +548,21 @@
             
             if (endMinutes < startMinutes) endMinutes += 24 * 60;
             
-            // Pause dîner fixe : 12h00 - 13h00 (720 - 780 minutes)
-            const lunchStart = 12 * 60; // 720 minutes (12h00)
-            const lunchEnd = 13 * 60;   // 780 minutes (13h00)
-            
             let workMinutes = endMinutes - startMinutes;
             
-            // Soustraire la pause dîner si elle est dans la plage de travail
-            if (startMinutes < lunchEnd && endMinutes > lunchStart) {
-                const overlapStart = Math.max(startMinutes, lunchStart);
-                const overlapEnd = Math.min(endMinutes, lunchEnd);
-                workMinutes -= (overlapEnd - overlapStart);
+            // Soustraire la pause dîner seulement si la checkbox est cochée
+            const lunchBreakEnabled = document.getElementById('lunchBreak')?.checked;
+            if (lunchBreakEnabled) {
+                // Pause dîner fixe : 12h00 - 13h00 (720 - 780 minutes)
+                const lunchStart = 12 * 60; // 720 minutes (12h00)
+                const lunchEnd = 13 * 60;   // 780 minutes (13h00)
+                
+                // Soustraire la pause dîner si elle est dans la plage de travail
+                if (startMinutes < lunchEnd && endMinutes > lunchStart) {
+                    const overlapStart = Math.max(startMinutes, lunchStart);
+                    const overlapEnd = Math.min(endMinutes, lunchEnd);
+                    workMinutes -= (overlapEnd - overlapStart);
+                }
             }
             
             totalHours = Math.max(0, workMinutes / 60);
@@ -593,54 +600,126 @@
             const sliderBar = document.getElementById('sliderBar');
             sliderBar.innerHTML = '';
             
-            // Calculer les heures de début et fin pour chaque tâche
             const startParts = document.getElementById('startTime').value.split(':');
-            let currentMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+            const endParts = document.getElementById('endTime').value.split(':');
+            let startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+            let endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+            
+            if (endMinutes < startMinutes) endMinutes += 24 * 60;
+            
+            const lunchBreakEnabled = document.getElementById('lunchBreak')?.checked;
+            const lunchStart = 12 * 60; // 12h00
+            const lunchEnd = 13 * 60;   // 13h00
+            
+            // Calculer le temps total incluant la pause si elle est dans la plage
+            let totalMinutesIncludingLunch = endMinutes - startMinutes;
+            
+            // Créer un tableau de sections (tâches + pause si applicable)
+            const sections = [];
+            let currentMinutes = startMinutes;
             
             selectedTasks.forEach((task, idx) => {
-                const hours = taskHours[task];
-                const pct = (hours / totalHours) * 100;
+                const taskMinutes = taskHours[task] * 60;
                 
-                // Calculer l'heure de début de cette tâche
-                const startH = Math.floor(currentMinutes / 60);
-                const startM = currentMinutes % 60;
+                // Vérifier si la pause dîner doit être insérée avant cette tâche
+                if (lunchBreakEnabled && currentMinutes < lunchStart && (currentMinutes + taskMinutes) > lunchStart) {
+                    // Ajouter la partie de la tâche avant la pause
+                    const beforeLunchMinutes = lunchStart - currentMinutes;
+                    if (beforeLunchMinutes > 0) {
+                        sections.push({
+                            type: 'task',
+                            name: task,
+                            taskIndex: idx,
+                            startMinutes: currentMinutes,
+                            durationMinutes: beforeLunchMinutes,
+                            color: COLORS[idx % COLORS.length]
+                        });
+                        currentMinutes = lunchStart;
+                    }
+                    
+                    // Ajouter la pause
+                    sections.push({
+                        type: 'lunch',
+                        name: 'Pause 1h',
+                        startMinutes: lunchStart,
+                        durationMinutes: 60,
+                        color: '#9e9e9e'
+                    });
+                    currentMinutes = lunchEnd;
+                    
+                    // Ajouter la partie de la tâche après la pause
+                    const afterLunchMinutes = taskMinutes - beforeLunchMinutes;
+                    if (afterLunchMinutes > 0) {
+                        sections.push({
+                            type: 'task',
+                            name: task,
+                            taskIndex: idx,
+                            startMinutes: currentMinutes,
+                            durationMinutes: afterLunchMinutes,
+                            color: COLORS[idx % COLORS.length]
+                        });
+                        currentMinutes += afterLunchMinutes;
+                    }
+                } else {
+                    // Ajouter la tâche normalement
+                    sections.push({
+                        type: 'task',
+                        name: task,
+                        taskIndex: idx,
+                        startMinutes: currentMinutes,
+                        durationMinutes: taskMinutes,
+                        color: COLORS[idx % COLORS.length]
+                    });
+                    currentMinutes += taskMinutes;
+                }
+            });
+            
+            // Afficher les sections
+            sections.forEach((section, idx) => {
+                const startH = Math.floor(section.startMinutes / 60);
+                const startM = Math.floor(section.startMinutes % 60);
+                const endMinutes = section.startMinutes + section.durationMinutes;
+                const endH = Math.floor(endMinutes / 60);
+                const endM = Math.floor(endMinutes % 60);
+                
                 const startTime = `${startH}h${startM.toString().padStart(2,'0')}`;
-                
-                // Calculer l'heure de fin
-                currentMinutes += hours * 60;
-                const endH = Math.floor(currentMinutes / 60);
-                const endM = Math.round(currentMinutes % 60);
                 const endTime = `${endH}h${endM.toString().padStart(2,'0')}`;
                 
-                const section = document.createElement('div');
-                section.className = 'task-section';
-                section.style.width = pct + '%';
-                section.style.backgroundColor = COLORS[idx % COLORS.length];
-                section.style.cursor = idx < selectedTasks.length - 1 ? 'ew-resize' : 'default';
+                const pct = (section.durationMinutes / totalMinutesIncludingLunch) * 100;
                 
-                section.innerHTML = `
-                    <div class="task-name">${task}</div>
-                    <div class="task-hours">${startTime} - ${endTime}</div>
-                `;
+                const div = document.createElement('div');
+                div.className = 'task-section';
+                div.style.width = pct + '%';
+                div.style.backgroundColor = section.color;
                 
-                // Rendre toute la section draggable (sauf la dernière)
-                if (idx < selectedTasks.length - 1) {
-                    section.dataset.index = idx;
-                    section.style.position = 'relative';
+                if (section.type === 'lunch') {
+                    div.style.cursor = 'default';
+                    div.innerHTML = `
+                        <div class="task-name">${section.name}</div>
+                        <div class="task-hours">${startTime} - ${endTime}</div>
+                    `;
+                } else {
+                    div.style.cursor = idx < sections.length - 1 ? 'ew-resize' : 'default';
+                    div.innerHTML = `
+                        <div class="task-name">${section.name}</div>
+                        <div class="task-hours">${startTime} - ${endTime}</div>
+                    `;
                     
-                    // Support souris
-                    section.addEventListener('mousedown', startDrag);
-                    // Support tactile
-                    section.addEventListener('touchstart', startDrag, { passive: false });
-                    
-                    // Ajouter une petite poignée visuelle (optionnel)
-                    const handle = document.createElement('div');
-                    handle.className = 'resize-handle';
-                    handle.style.pointerEvents = 'none'; // La poignée est juste visuelle
-                    section.appendChild(handle);
+                    // Rendre draggable sauf la dernière section
+                    if (idx < sections.length - 1 && sections[idx + 1].type !== 'lunch') {
+                        div.dataset.index = section.taskIndex;
+                        div.style.position = 'relative';
+                        div.addEventListener('mousedown', startDrag);
+                        div.addEventListener('touchstart', startDrag, { passive: false });
+                        
+                        const handle = document.createElement('div');
+                        handle.className = 'resize-handle';
+                        handle.style.pointerEvents = 'none';
+                        div.appendChild(handle);
+                    }
                 }
                 
-                sliderBar.appendChild(section);
+                sliderBar.appendChild(div);
             });
             
             // Ajouter les inputs manuels
